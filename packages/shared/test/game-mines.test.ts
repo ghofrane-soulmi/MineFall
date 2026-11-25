@@ -87,7 +87,7 @@ describe('opponent mines (explosion)', () => {
   });
 });
 
-describe('both players mined the same cell (PROVISIONAL: open question Q2)', () => {
+describe('both players mined the same cell (decided: it explodes)', () => {
   it('explodes and clears both mines', () => {
     const game = startedGame(
       [BOTTOM_OF_COL_3, { col: 0, row: 1 }],

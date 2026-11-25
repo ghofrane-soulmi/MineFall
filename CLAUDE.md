@@ -98,7 +98,7 @@ Commands for `apps/api` and `apps/web` are added when those milestones start.
 
 ## Game rules — quick reference (SPEC section 3)
 
-- Grid 7 cols × 6 rows. Player 1 = red, Player 2 = yellow; starting player random.
+- Grid 7 cols × 6 rows. Player 1 = red, Player 2 = yellow; starting player by dice roll.
 - **Placement (30 s):** each player picks 2 mine cells, any row except the top row.
   Same cell allowed for both players. Missing mines placed randomly on timeout.
 - **Play (20 s/turn):** choose a column not full and not blocked; token falls to lowest
@@ -107,8 +107,8 @@ Commands for `apps/api` and `apps/web` are added when those milestones start.
   - Opponent mine → explodes, revealed to both, token destroyed, cell stays empty,
     mine removed, column blocked for both players.
   - Turn always passes (explosion uses the turn). Timeout → server plays a random valid column.
-- **End:** 4 in a row (H, V, both diagonals) wins; draw if board full or no valid column
-  for current and next player; forfeit on leave or > 60 s disconnected.
+- **End:** 4 in a row (H, V, both diagonals) wins; draw if the next player has no valid
+  column (board full or all free columns blocked); forfeit on leave or > 60 s disconnected.
   All remaining mines revealed at the end.
 
 ## Decided rule choices
@@ -127,5 +127,6 @@ Answers to the open questions in SPEC section 3. These override any guess.
   six-sided dice; the highest total becomes Player 1 (red) and moves first; equal totals
   re-roll. The server rolls, the client only animates the rounds. Rematch still swaps the
   starting player (F10). (decided 2026-11-25)
-- Same cell mined by both players: **open (Q2)**. The current code is _provisional_: it
-  explodes and both mines are removed (`resolveMove` in `engine/game.ts`, marked PROVISIONAL).
+- Same cell mined by both players: **it explodes** when either player lands on it (the
+  opponent's mine wins over own-mine safety). The token is destroyed and both mines are
+  removed and revealed. (decided 2026-11-25)

@@ -184,7 +184,7 @@ function resolveMove(
     explodedMine = { ...cell, ownerId: opponentId, moveNumber };
     explodedMines.push(explodedMine);
     mines = { ...mines, [opponentId]: withoutCell(mines[opponentId], cell) };
-    // PROVISIONAL (open question Q2): if the mover also mined this cell, that mine is cleared too.
+    // Shared cell (decided): the opponent's mine wins; the mover's own mine there is cleared too.
     if ((mines[playerId] ?? []).some((m) => sameCell(m, cell))) {
       explodedMines.push({ ...cell, ownerId: playerId, moveNumber });
       mines = { ...mines, [playerId]: withoutCell(mines[playerId], cell) };
