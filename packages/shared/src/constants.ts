@@ -15,6 +15,7 @@ export const BLOCKED_COLUMN_MOVES = 1;
 export const PLACEMENT_DURATION_MS = 30_000;
 export const TURN_DURATION_MS = 20_000;
 
-/** Starting-player dice roll: one six-sided die per player, highest starts, ties re-roll. */
+/** Starting-player dice roll: two six-sided dice per player, highest total starts, ties re-roll. */
 export const DIE_FACES = 6;
+export const DICE_PER_PLAYER = 2;
 export const MAX_DICE_ROUNDS = 50;

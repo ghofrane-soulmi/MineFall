@@ -123,9 +123,9 @@ Answers to the open questions in SPEC section 3. These override any guess.
   valid column. (decided 2026-11-25)
 - No valid column for the next player (board full, or every free column blocked):
   **the game ends as a draw** immediately after the move that caused it. (decided 2026-11-25)
-- Starting player: **dice roll** instead of a plain random pick. Each player rolls one
-  six-sided die; the highest becomes Player 1 (red) and moves first; ties re-roll. The server
-  rolls, the client only animates the rounds. Rematch still swaps the starting player (F10).
-  (decided 2026-11-25; "1 die each" is a default pending confirmation)
+- Starting player: **dice roll** instead of a plain random pick. Each player rolls **two**
+  six-sided dice; the highest total becomes Player 1 (red) and moves first; equal totals
+  re-roll. The server rolls, the client only animates the rounds. Rematch still swaps the
+  starting player (F10). (decided 2026-11-25)
 - Same cell mined by both players: **open (Q2)**. The current code is _provisional_: it
   explodes and both mines are removed (`resolveMove` in `engine/game.ts`, marked PROVISIONAL).
