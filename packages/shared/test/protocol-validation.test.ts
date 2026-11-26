@@ -3,6 +3,7 @@ import {
   normalizeNickname,
   normalizeRoomCode,
   parseChatSend,
+  parseRoomCreate,
   parseMinesPlace,
   parseMoveDrop,
   parseRoomJoin,
@@ -110,5 +111,19 @@ describe('chat', () => {
     expect(parseChatSend({ type: 'html', value: 'x' })).toBeNull();
     expect(parseChatSend({ type: 'text', value: '' })).toBeNull();
     expect(parseChatSend('gg')).toBeNull();
+  });
+});
+
+describe('parseRoomCreate', () => {
+  it('accepts no payload, an empty payload or a known bot level', () => {
+    expect(parseRoomCreate(undefined)).toEqual({});
+    expect(parseRoomCreate({})).toEqual({});
+    expect(parseRoomCreate({ bot: 'easy' })).toEqual({ bot: 'easy' });
+    expect(parseRoomCreate({ bot: 'normal' })).toEqual({ bot: 'normal' });
+  });
+
+  it('refuses unknown bot levels and bad shapes', () => {
+    expect(parseRoomCreate({ bot: 'impossible' })).toBeNull();
+    expect(parseRoomCreate('bot')).toBeNull();
   });
 });

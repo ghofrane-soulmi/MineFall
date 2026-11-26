@@ -4,8 +4,8 @@ import { ME, OPP } from '../test/fixtures';
 import ChatPanel from './ChatPanel.vue';
 
 const players = [
-  { ...ME, color: 'red' as const, online: true, ready: true, wantsRematch: false },
-  { ...OPP, color: 'yellow' as const, online: true, ready: true, wantsRematch: false },
+  { ...ME, color: 'red' as const, online: true, ready: true, wantsRematch: false, bot: null },
+  { ...OPP, color: 'yellow' as const, online: true, ready: true, wantsRematch: false, bot: null },
 ];
 
 describe('ChatPanel', () => {

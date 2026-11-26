@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** Home: nickname, create a room, join with a code, resume a running game. */
-import { normalizeRoomCode, ROOM_CODE_LENGTH } from '@minefall/shared';
+import { normalizeRoomCode, ROOM_CODE_LENGTH, type BotLevel } from '@minefall/shared';
 import { computed, ref, watchEffect } from 'vue';
 import { useRouter } from 'vue-router';
 import HowToPlay from '../components/HowToPlay.vue';
@@ -21,9 +21,9 @@ watchEffect(() => {
   if (session.token) store.connect();
 });
 
-async function createRoom(): Promise<void> {
+async function createRoom(bot?: BotLevel): Promise<void> {
   creating.value = true;
-  const code = await store.createRoom();
+  const code = await store.createRoom(bot);
   creating.value = false;
   if (code) await router.push({ name: 'room', params: { code } });
 }
@@ -76,7 +76,7 @@ function changeNickname(): void {
           class="w-full rounded-xl bg-mine py-3 font-bold text-night transition hover:brightness-110 disabled:opacity-50"
           :disabled="creating || store.connection === 'offline'"
           data-testid="create-room"
-          @click="createRoom"
+          @click="createRoom()"
         >
           {{ creating ? 'Creating…' : 'Create room' }}
         </button>
@@ -100,6 +100,32 @@ function changeNickname(): void {
             Join
           </button>
         </form>
+
+        <div v-if="!store.room" class="border-t border-line pt-4">
+          <p class="mb-2 text-sm font-semibold">
+            Alone? Play against <span class="text-mine">Minebot</span> 🤖
+          </p>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              class="rounded-xl bg-surface-2 py-2.5 font-semibold transition hover:bg-line disabled:opacity-50"
+              :disabled="creating || store.connection === 'offline'"
+              data-testid="play-bot-easy"
+              @click="createRoom('easy')"
+            >
+              Easy
+            </button>
+            <button
+              type="button"
+              class="rounded-xl bg-surface-2 py-2.5 font-semibold transition hover:bg-line disabled:opacity-50"
+              :disabled="creating || store.connection === 'offline'"
+              data-testid="play-bot-normal"
+              @click="createRoom('normal')"
+            >
+              Normal
+            </button>
+          </div>
+        </div>
       </template>
     </section>
 

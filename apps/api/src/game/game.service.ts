@@ -16,6 +16,8 @@ import {
   ServerEvents,
   allRemainingMines,
   applyMove,
+  chooseBotColumn,
+  chooseBotMines,
   applyTimeoutMove,
   createGame,
   finishPlacement,
@@ -26,6 +28,7 @@ import {
   type Ack,
   type AckErrorCode,
   type AckFailure,
+  type BotLevel,
   type ChatSendPayload,
   type EngineEvent,
   type EngineResult,
@@ -39,6 +42,7 @@ import {
 import { APP_CONFIG, CLOCK, RNG, type AppConfig, type Clock } from '../config/app-config';
 import { GameRecorder, toFinishedGameRecord } from '../persistence/game-recorder';
 import {
+  findBot,
   findMember,
   isGameRunning,
   roomPhase,
@@ -55,6 +59,7 @@ const OK = { ok: true } as const;
 const fail = (error: AckErrorCode): AckFailure => ({ ok: false, error });
 
 const phaseTimerKey = (code: string): string => `${code}:phase`;
+const botTimerKey = (code: string): string => `${code}:bot`;
 const graceTimerKey = (code: string, playerId: PlayerId): string => `${code}:grace:${playerId}`;
 
 @Injectable()
@@ -134,11 +139,18 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
   // Lobby
   // -------------------------------------------------------------------------
 
-  createRoom(player: GuestIdentity): Ack<{ code: string }> {
+  /** Creates a room. With `bot`, Minebot joins as the second player and the game starts. */
+  createRoom(player: GuestIdentity, bot?: BotLevel): Ack<{ code: string }> {
     if (this.rooms.findByPlayer(player.id)) return fail('ALREADY_IN_ROOM');
     const room = this.rooms.create(player, this.now());
     this.notifier.joinRoom(player.id, room.code);
-    this.sendRoomState(room, player.id);
+    if (bot) {
+      this.rooms.addBot(room, bot, this.now());
+      this.startGame(room, null);
+      this.sendBotChat(room, 'good-luck');
+    } else {
+      this.sendRoomState(room, player.id);
+    }
     return { ok: true, data: { code: room.code } };
   }
 
@@ -187,8 +199,10 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     this.rooms.removeMember(room, playerId);
     this.lastChatAt.delete(playerId);
 
-    if (room.members.length === 0) {
+    if (room.members.every((m) => m.bot !== null)) {
+      // Only Minebot is left (or nobody): the room has no reason to exist.
       this.scheduler.cancelByPrefix(`${room.code}:`);
+      this.rooms.delete(room);
       return OK;
     }
     this.resetToLobby(room);
@@ -310,6 +324,56 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
       endsAt: room.phaseEndsAt,
     });
     for (const member of room.members) this.sendRoomState(room, member.id);
+    this.scheduleBot(room);
+  }
+
+  // -------------------------------------------------------------------------
+  // Minebot
+  // -------------------------------------------------------------------------
+
+  /** If it is Minebot's job to act (hide mines / play its turn), do it after a short pause. */
+  private scheduleBot(room: Room): void {
+    const bot = findBot(room);
+    const game = room.game;
+    if (!bot || !game) return;
+    const needsMines = game.phase === 'placement' && !game.minesConfirmed[bot.id];
+    const needsMove = game.phase === 'playing' && game.currentPlayerId === bot.id;
+    if (!needsMines && !needsMove) return;
+
+    const { botThinkMinMs: min, botThinkMaxMs: max } = this.config.timings;
+    const delay = min + this.rng() * (max - min);
+    this.scheduler.schedule(botTimerKey(room.code), delay, () => this.playBotTurn(room.code));
+  }
+
+  private playBotTurn(code: string): void {
+    const room = this.rooms.get(code);
+    const bot = room && findBot(room);
+    const game = room?.game;
+    if (!room || !bot?.bot || !game) return;
+
+    if (game.phase === 'placement' && !game.minesConfirmed[bot.id]) {
+      const cells = chooseBotMines(bot.bot, this.rng);
+      this.applyEngine(room, placeMines(game, { playerId: bot.id, cells }));
+      return;
+    }
+    if (game.phase === 'playing' && game.currentPlayerId === bot.id) {
+      // The bot decides from ITS OWN view, exactly what a human would receive: no cheating.
+      const column = chooseBotColumn(toPlayerView(game, bot.id), bot.bot, this.rng);
+      if (column === null) return;
+      this.applyEngine(room, applyMove(game, { playerId: bot.id, column, turnId: game.turnId }));
+    }
+  }
+
+  private sendBotChat(room: Room, presetId: string): void {
+    const bot = findBot(room);
+    if (!bot) return;
+    this.notifier.toRoom(room.code, ServerEvents.ChatMessage, {
+      id: randomUUID(),
+      playerId: bot.id,
+      type: 'preset',
+      value: presetId,
+      sentAt: this.now(),
+    });
   }
 
   private onPlacementTimeout(code: string): void {
@@ -340,6 +404,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     room.game = result.state;
     this.touch(room);
     for (const event of result.events) this.handleEngineEvent(room, event);
+    this.scheduleBot(room);
     return OK;
   }
 
@@ -405,6 +470,14 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     });
     this.notifier.toRoom(room.code, ServerEvents.PhaseChanged, { phase: 'finished', endsAt: null });
     this.saveFinishedGame(room);
+
+    const bot = findBot(room);
+    if (bot) {
+      // Minebot is always up for another round: the human's rematch click starts it.
+      bot.wantsRematch = true;
+      this.broadcastPlayers(room);
+      this.sendBotChat(room, 'gg');
+    }
   }
 
   /** Stores the game in the background: a database problem must never break live play. */

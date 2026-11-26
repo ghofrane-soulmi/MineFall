@@ -42,6 +42,13 @@ const { seconds: graceSeconds } = useCountdown(
           :aria-label="player.online ? 'online' : 'offline'"
         />
         <span class="truncate font-semibold">{{ player.nickname }}</span>
+        <span
+          v-if="player.bot"
+          class="shrink-0 rounded-full bg-surface-2 px-1.5 text-[10px] font-semibold text-muted"
+          :title="`Bot, ${player.bot} level`"
+        >
+          🤖 {{ player.bot }}
+        </span>
         <span v-if="isMe" class="text-xs text-muted">(you)</span>
       </div>
       <div class="truncate text-xs text-muted">

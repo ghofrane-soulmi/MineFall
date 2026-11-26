@@ -78,9 +78,11 @@ const exploded = computed(() => new Set(props.summary.explodedMines.map((m) => m
           {{
             me?.wantsRematch
               ? 'Waiting for opponent…'
-              : opponent?.wantsRematch
-                ? 'Accept rematch'
-                : 'Rematch'
+              : opponent?.bot
+                ? 'Play again'
+                : opponent?.wantsRematch
+                  ? 'Accept rematch'
+                  : 'Rematch'
           }}
         </button>
         <div class="grid grid-cols-2 gap-2">

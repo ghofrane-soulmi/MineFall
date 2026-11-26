@@ -153,6 +153,17 @@ describe('game store: actions', () => {
     expect(await store.createRoom()).toBe('ABCDEF');
   });
 
+  it('createRoom asks for Minebot when a bot level is given', async () => {
+    const { store } = setup();
+    socket.acks.set(ClientEvents.RoomCreate, { ok: true, data: { code: 'ABCDEF' } });
+    await store.createRoom('normal');
+    await store.createRoom();
+    expect(socket.sent.filter((m) => m.event === ClientEvents.RoomCreate)).toEqual([
+      { event: ClientEvents.RoomCreate, payload: { bot: 'normal' } },
+      { event: ClientEvents.RoomCreate, payload: {} },
+    ]);
+  });
+
   it('a refused action shows a readable error', async () => {
     const { store } = setup();
     socket.acks.set(ClientEvents.MoveDrop, { ok: false, error: 'COLUMN_BLOCKED' });

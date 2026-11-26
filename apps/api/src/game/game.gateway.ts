@@ -17,6 +17,7 @@ import {
   ClientEvents,
   SOCKET_NAMESPACE,
   parseChatSend,
+  parseRoomCreate,
   parseMinesPlace,
   parseMoveDrop,
   parseRoomJoin,
@@ -81,8 +82,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   @SubscribeMessage(ClientEvents.RoomCreate)
-  createRoom(@ConnectedSocket() socket: GameSocket): Ack<{ code: string }> {
-    return this.safely(() => this.game.createRoom(socket.data.player));
+  createRoom(
+    @ConnectedSocket() socket: GameSocket,
+    @MessageBody() body: unknown,
+  ): Ack<{ code: string }> {
+    const payload = parseRoomCreate(body);
+    if (!payload) return INVALID_PAYLOAD;
+    return this.safely(() => this.game.createRoom(socket.data.player, payload.bot));
   }
 
   @SubscribeMessage(ClientEvents.RoomJoin)

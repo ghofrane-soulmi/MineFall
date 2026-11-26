@@ -11,11 +11,13 @@ import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
 } from '../constants';
+import { BOT_LEVELS, type BotLevel } from '../bot/strategy';
 import type { Cell } from '../types/board';
 import type {
   ChatSendPayload,
   MinesPlacePayload,
   MoveDropPayload,
+  RoomCreatePayload,
   RoomJoinPayload,
   RoomReadyPayload,
 } from './payloads';
@@ -50,6 +52,15 @@ export function normalizeRoomCode(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const code = raw.trim().toUpperCase();
   return ROOM_CODE_PATTERN.test(code) ? code : null;
+}
+
+/** `{}` = room for two humans; `{ bot: 'easy' | 'normal' }` = play against Minebot. */
+export function parseRoomCreate(payload: unknown): RoomCreatePayload | null {
+  if (payload === undefined || payload === null) return {};
+  if (!isRecord(payload)) return null;
+  const bot = payload['bot'];
+  if (bot === undefined) return {};
+  return (BOT_LEVELS as readonly unknown[]).includes(bot) ? { bot: bot as BotLevel } : null;
 }
 
 export function parseRoomJoin(payload: unknown): RoomJoinPayload | null {

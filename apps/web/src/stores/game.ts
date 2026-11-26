@@ -8,6 +8,7 @@ import {
   ClientEvents,
   ServerEvents,
   type Ack,
+  type BotLevel,
   type Cell,
   type ChatMessagePayload,
   type ChatMessageType,
@@ -191,8 +192,10 @@ export const useGameStore = defineStore('game', () => {
   // Actions (client -> server, with acknowledgement)
   // ---------------------------------------------------------------------------
 
-  async function createRoom(): Promise<string | null> {
-    const ack = await request((s) => s.emitWithAck(ClientEvents.RoomCreate, {}));
+  /** Creates a room; with `bot`, Minebot is the opponent and the game starts at once. */
+  async function createRoom(bot?: BotLevel): Promise<string | null> {
+    const payload = bot ? { bot } : {};
+    const ack = await request((s) => s.emitWithAck(ClientEvents.RoomCreate, payload));
     return ack.ok ? ack.data.code : null;
   }
 

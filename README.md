@@ -6,7 +6,8 @@ with a server-authoritative design that keeps each player's mines secret.
 
 [![CI](https://github.com/ghofrane-soulmi/MineFall/actions/workflows/ci.yml/badge.svg)](https://github.com/ghofrane-soulmi/MineFall/actions/workflows/ci.yml)
 
-**Live demo:** _coming soon_ · no account needed: pick a nickname, share the room link.
+**Live demo:** _coming soon_ · no account needed: pick a nickname, then share a room link
+or play solo against **Minebot**.
 
 ![Two players in a live game of Minefall, with an explosion](docs/minefall-demo.gif)
 
@@ -23,6 +24,9 @@ Who starts is decided by a dice roll (two dice each, highest total plays red).
 ## Features
 
 - Guest play in seconds: nickname only, private rooms with a 6-character code, link and QR code
+- **Play solo against Minebot** (easy or normal): it wins when it can, blocks your threats, avoids
+  gifting you a win and hides its mines where people play early. It decides from the same
+  filtered view a human gets, so it cannot see your mines
 - Real-time play over WebSockets with server-side timers (30 s placement, 20 s per turn)
 - **Reconnection:** refresh the page mid-game and you are back where you were; a player who
   stays away more than 60 s forfeits
@@ -44,6 +48,7 @@ flowchart LR
     Service --> Engine["Pure game engine<br/>(packages/shared)"]
     Service --> View["toPlayerView(state, player)<br/>removes opponent mines"]
     Service --> Recorder["GameRecorder (Prisma)"]
+    Service --> Bot["Minebot strategy<br/>(sees toPlayerView only)"]
   end
 
   Store <-- "Socket.IO /game<br/>intentions ⇄ per-player views" --> Gateway

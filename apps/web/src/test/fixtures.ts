@@ -20,8 +20,8 @@ export function roomSnapshot(overrides: Partial<RoomSnapshot> = {}): RoomSnapsho
     hostId: ME.id,
     phase: 'playing',
     players: [
-      { ...ME, color: 'red', online: true, ready: false, wantsRematch: false },
-      { ...OPP, color: 'yellow', online: true, ready: false, wantsRematch: false },
+      { ...ME, color: 'red', online: true, ready: false, wantsRematch: false, bot: null },
+      { ...OPP, color: 'yellow', online: true, ready: false, wantsRematch: false, bot: null },
     ],
     phaseEndsAt: 1_000_000 + 20_000,
     startingRoll: null,

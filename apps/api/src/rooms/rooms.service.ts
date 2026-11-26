@@ -3,9 +3,15 @@
  * in which room; it knows nothing about sockets, timers or game rules.
  */
 import { Injectable } from '@nestjs/common';
-import type { GuestIdentity, PlayerId, ProtocolErrorCode } from '@minefall/shared';
+import type { BotLevel, GuestIdentity, PlayerId, ProtocolErrorCode } from '@minefall/shared';
 import { MAX_ROOM_MEMBERS, type Room, type RoomMember } from './room';
 import { generateRoomCode } from './room-code';
+
+/** Fixed UUIDs for Minebot (valid for the users table). */
+export const BOT_IDS: Readonly<Record<BotLevel, PlayerId>> = {
+  easy: '00000000-0000-4000-8000-0000000b0701',
+  normal: '00000000-0000-4000-8000-0000000b0702',
+};
 
 @Injectable()
 export class RoomsService {
@@ -58,6 +64,21 @@ export class RoomsService {
     return null;
   }
 
+  /** Adds Minebot as the second player. Stable ids per level, so saved games group nicely. */
+  addBot(room: Room, level: BotLevel, now: number): RoomMember {
+    const bot: RoomMember = {
+      id: BOT_IDS[level],
+      nickname: 'Minebot',
+      online: true,
+      ready: true,
+      wantsRematch: false,
+      bot: level,
+    };
+    room.members.push(bot);
+    room.lastActivityAt = now;
+    return bot;
+  }
+
   /** Removes a member; hands the host role over, and deletes the room once it is empty. */
   removeMember(room: Room, playerId: PlayerId): void {
     room.members = room.members.filter((m) => m.id !== playerId);
@@ -84,5 +105,6 @@ function newMember(player: GuestIdentity): RoomMember {
     online: true,
     ready: false,
     wantsRematch: false,
+    bot: null,
   };
 }

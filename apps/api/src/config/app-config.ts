@@ -15,6 +15,9 @@ export interface GameTimings {
   readonly disconnectGraceMs: number;
   readonly roomIdleMs: number;
   readonly cleanupIntervalMs: number;
+  /** Minebot thinks for a random time in this range before acting. */
+  readonly botThinkMinMs: number;
+  readonly botThinkMaxMs: number;
 }
 
 export interface AppConfig {
@@ -42,6 +45,8 @@ export const DEFAULT_TIMINGS: GameTimings = {
   disconnectGraceMs: DISCONNECT_GRACE_MS,
   roomIdleMs: ROOM_IDLE_TIMEOUT_MS,
   cleanupIntervalMs: 60_000,
+  botThinkMinMs: 700,
+  botThinkMaxMs: 1_500,
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {

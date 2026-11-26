@@ -10,6 +10,7 @@ import type {
   ChatMessagePayload,
   ChatSendPayload,
   EmptyPayload,
+  RoomCreatePayload,
   ErrorPayload,
   GameOverPayload,
   MinesConfirmedPayload,
@@ -27,7 +28,10 @@ import type {
 type AckCallback<T = undefined> = (response: Ack<T>) => void;
 
 export interface ClientToServerEvents {
-  [ClientEvents.RoomCreate]: (payload: EmptyPayload, ack: AckCallback<{ code: string }>) => void;
+  [ClientEvents.RoomCreate]: (
+    payload: RoomCreatePayload,
+    ack: AckCallback<{ code: string }>,
+  ) => void;
   [ClientEvents.RoomJoin]: (payload: RoomJoinPayload, ack: AckCallback) => void;
   [ClientEvents.RoomReady]: (payload: RoomReadyPayload, ack: AckCallback) => void;
   [ClientEvents.RoomLeave]: (payload: EmptyPayload, ack: AckCallback) => void;

@@ -286,7 +286,13 @@ describe('Minefall API (integration)', () => {
 describe('Minefall API (server timers, short durations)', () => {
   let server: TestServer;
   beforeAll(async () => {
-    server = await startServer({ placementMs: 300, turnMs: 400, disconnectGraceMs: 300 });
+    server = await startServer({
+      placementMs: 300,
+      turnMs: 400,
+      disconnectGraceMs: 300,
+      botThinkMinMs: 10,
+      botThinkMaxMs: 30,
+    });
   });
   afterAll(async () => {
     await server.app.close();
@@ -298,6 +304,39 @@ describe('Minefall API (server timers, short durations)', () => {
     const auto = await second.rec.waitFor(ServerEvents.MoveResult);
     expect(auto).toMatchObject({ playerId: first.id, timeout: true });
     close(first, second);
+  });
+
+  it('a full game against Minebot over the network (the human lets the timer play)', async () => {
+    const human = await joinAsGuest(server, 'Solo');
+    const created = await human.socket.emitWithAck(ClientEvents.RoomCreate, { bot: 'normal' });
+    expect(created).toMatchObject({ ok: true });
+
+    // No lobby: dice, then placement, straight away.
+    await human.rec.waitFor(ServerEvents.DiceRolled);
+    const state = await human.rec.waitFor(ServerEvents.RoomState, (s) => s.game !== null);
+    const bot = state.room.players.find((p) => p.bot === 'normal');
+    expect(bot?.nickname).toBe('Minebot');
+
+    // The human never acts: the server places their mines and plays their turns on timeout,
+    // while Minebot plays its own turns. The game must reach its end on its own.
+    const over = await human.rec.waitFor(ServerEvents.GameOver, () => true, 30_000);
+    expect(['win', 'draw']).toContain(over.result.type);
+    const moves = human.rec.all(ServerEvents.MoveResult);
+    expect(moves.some((m) => m.playerId === bot?.id && !m.timeout)).toBe(true);
+    expect(moves.some((m) => m.playerId === human.id && m.timeout)).toBe(true);
+
+    // Minebot accepts a rematch immediately.
+    expect(await human.socket.emitWithAck(ClientEvents.GameRematch, {})).toEqual({ ok: true });
+    await human.rec.waitFor(ServerEvents.PhaseChanged, (p) => p.phase === 'placement');
+    close(human);
+  }, 40_000);
+
+  it('rejects an unknown bot level', async () => {
+    const human = await joinAsGuest(server, 'Picky');
+    expect(
+      await human.socket.emitWithAck(ClientEvents.RoomCreate, { bot: 'godlike' } as never),
+    ).toEqual({ ok: false, error: 'INVALID_PAYLOAD' });
+    close(human);
   });
 
   it('a player who stays disconnected past the grace period forfeits', async () => {

@@ -92,6 +92,10 @@ windows, or one normal + one private window, to be two players).
 - Local ports avoid other projects on this machine: Postgres 5442, Docker web 8090.
 - E2E against a running deployment: `E2E_BASE_URL=http://localhost:8090 pnpm --filter
 @minefall/web exec playwright test`.
+- Minebot (F13): strategy = pure functions in `packages/shared/src/bot/strategy.ts`, called by
+  `GameService` with `toPlayerView(game, botId)` ONLY (no cheating). The bot acts through the
+  same engine calls as a player, after a `botThink*Ms` delay scheduled with the `Scheduler`
+  (key `<code>:bot`). `room:create { bot: 'easy' | 'normal' }` starts the game at once.
 - `.vue` files are type-checked by `vue-tsc` but not linted (no eslint-plugin-vue yet).
 - In `apps/api`, keep NestJS constructor dependencies as VALUE imports (not `import type`):
   Nest reads them at runtime. ESLint is configured accordingly.

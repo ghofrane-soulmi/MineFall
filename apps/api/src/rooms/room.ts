@@ -4,6 +4,7 @@
  * Nothing here ever exposes `game.mines`: game data leaves only through `toPlayerView`.
  */
 import type {
+  BotLevel,
   GameState,
   PlayerId,
   RoomPhase,
@@ -21,6 +22,8 @@ export interface RoomMember {
   online: boolean;
   ready: boolean;
   wantsRematch: boolean;
+  /** Set for Minebot (played by the server). */
+  readonly bot: BotLevel | null;
 }
 
 export interface Room {
@@ -48,6 +51,10 @@ export function isGameRunning(room: Room): boolean {
   return phase === 'placement' || phase === 'playing';
 }
 
+export function findBot(room: Room): RoomMember | undefined {
+  return room.members.find((m) => m.bot !== null);
+}
+
 export function findMember(room: Room, playerId: PlayerId): RoomMember | undefined {
   return room.members.find((m) => m.id === playerId);
 }
@@ -60,6 +67,7 @@ export function toRoomPlayers(room: Room): RoomPlayerInfo[] {
     online: m.online,
     ready: m.ready,
     wantsRematch: m.wantsRematch,
+    bot: m.bot,
   }));
 }
 

@@ -2,6 +2,7 @@
  * Payload shapes exchanged over Socket.IO and HTTP. Plain data only (JSON-safe).
  * Anything game-related a client receives is built from `toPlayerView`, never from raw state.
  */
+import type { BotLevel } from '../bot/strategy';
 import type { StartingRoll } from '../engine/dice';
 import type { Cell, Color } from '../types/board';
 import type { EngineErrorCode } from '../types/engine';
@@ -65,6 +66,10 @@ export type Ack<T = undefined> =
 // ---------------------------------------------------------------------------
 
 export type EmptyPayload = Record<string, never>;
+/** room:create. With `bot`, the room gets Minebot as the second player and starts at once. */
+export interface RoomCreatePayload {
+  readonly bot?: BotLevel;
+}
 export interface RoomJoinPayload {
   readonly code: string;
 }
@@ -101,6 +106,8 @@ export interface RoomPlayerInfo {
   readonly online: boolean;
   readonly ready: boolean;
   readonly wantsRematch: boolean;
+  /** Set when this player is Minebot (server-side bot). */
+  readonly bot: BotLevel | null;
 }
 
 export interface RoomSnapshot {
