@@ -31,10 +31,11 @@ export interface TestServer {
 export async function startServer(
   timings: Partial<GameTimings> = {},
   rng?: Rng,
+  databaseUrl?: string,
 ): Promise<TestServer> {
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(APP_CONFIG)
-    .useValue(testConfig(timings));
+    .useValue({ ...testConfig(timings), databaseUrl: databaseUrl ?? null });
   if (rng) builder = builder.overrideProvider(RNG).useValue(rng);
   const moduleRef = await builder.compile();
 

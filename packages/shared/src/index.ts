@@ -13,4 +13,5 @@ export * from './engine/view';
 export type * from './protocol/payloads';
 export type * from './protocol/socket';
 export * from './protocol/validation';
+export * from './protocol/accounts';
 export * from './bot/strategy';

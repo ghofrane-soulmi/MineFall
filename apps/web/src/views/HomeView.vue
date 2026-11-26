@@ -60,7 +60,19 @@ function changeNickname(): void {
     </header>
 
     <section class="space-y-4 rounded-2xl border border-line bg-surface p-6">
-      <NicknameForm v-if="!session.player" />
+      <template v-if="!session.player">
+        <NicknameForm />
+        <p class="text-center text-sm text-muted">
+          Already have an account?
+          <RouterLink
+            to="/login"
+            class="font-semibold text-mine hover:underline"
+            data-testid="go-login"
+          >
+            Log in
+          </RouterLink>
+        </p>
+      </template>
 
       <template v-else>
         <div class="flex items-center justify-between">

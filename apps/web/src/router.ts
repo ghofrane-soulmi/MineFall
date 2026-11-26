@@ -12,6 +12,8 @@ export const router = createRouter({
       component: () => import('./views/RoomView.vue'),
       props: (route) => ({ code: String(route.params['code']).toUpperCase() }),
     },
+    { path: '/profile', name: 'profile', component: () => import('./views/ProfileView.vue') },
+    { path: '/login', name: 'login', component: () => import('./views/LoginView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 });

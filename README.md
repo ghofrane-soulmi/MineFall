@@ -24,6 +24,10 @@ Who starts is decided by a dice roll (two dice each, highest total plays red).
 ## Features
 
 - Guest play in seconds: nickname only, private rooms with a 6-character code, link and QR code
+- **Accounts + stats:** any guest can add an email + password (same player, same games) and
+  log in on another device; "My stats" shows wins, losses, mines stepped on, traps that
+  worked and recent games. Passwords are hashed with Node's built-in scrypt; logins are
+  rate limited
 - **Spectator mode:** open the link of a full room to watch the game live (read-only chat). Spectators
   receive no mines at all until the game is over
 - **Quick match:** "Play now" pairs you with the next waiting player (Minebot is offered after

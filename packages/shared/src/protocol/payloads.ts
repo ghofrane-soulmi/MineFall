@@ -32,6 +32,8 @@ export interface GuestLoginRequest {
 export interface GuestSession {
   readonly token: string;
   readonly player: GuestIdentity;
+  /** Set when the player has an account (email + password); null for a guest. */
+  readonly email: string | null;
 }
 
 // ---------------------------------------------------------------------------

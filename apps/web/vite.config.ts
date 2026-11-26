@@ -12,6 +12,7 @@ export default defineConfig({
     proxy: {
       '/auth': API_URL,
       '/health': API_URL,
+      '/me': API_URL,
       '/socket.io': { target: API_URL, ws: true },
     },
   },

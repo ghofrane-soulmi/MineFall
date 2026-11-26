@@ -102,6 +102,12 @@ windows, or one normal + one private window, to be two players).
 - Spectators (F18): `room.spectators` (not members, so every player action returns
   `NOT_IN_ROOM`: read-only chat for free). `room:watch { code }`; `room:state.role`.
   Full resyncs use `sendRoomStateToAll` (players AND spectators, each via `toPlayerView`).
+- Accounts (F15/F16): an account = a guest + email + scrypt password hash (same player id,
+  so saved games stay theirs). `POST /auth/register` (guest token), `POST /auth/login`,
+  `GET /me/profile` (any token, guests too) behind `AuthGuard`. One Prisma client for the
+  app: the `Database` provider (`client` is null without DATABASE_URL -> 503
+  ACCOUNTS_DISABLED). Every new HTTP path prefix must be added to the Vite proxy
+  (`vite.config.ts`) AND `apps/web/docker/nginx.conf`.
 - `.vue` files are type-checked by `vue-tsc` but not linted (no eslint-plugin-vue yet).
 - In `apps/api`, keep NestJS constructor dependencies as VALUE imports (not `import type`):
   Nest reads them at runtime. ESLint is configured accordingly.

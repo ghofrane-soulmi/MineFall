@@ -12,7 +12,7 @@ const databaseUrl = process.env['TEST_DATABASE_URL'];
 describe.runIf(databaseUrl)('PrismaGameRecorder (real PostgreSQL)', () => {
   const prisma = createPrismaClient(databaseUrl ?? '');
   const recorder = new PrismaGameRecorder(prisma);
-  afterAll(() => recorder.onModuleDestroy());
+  afterAll(() => prisma.$disconnect());
 
   function record(): FinishedGameRecord {
     const red = { id: randomUUID(), nickname: 'Red' };

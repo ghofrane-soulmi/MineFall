@@ -11,7 +11,7 @@ let socket: FakeSocket;
 
 function setup() {
   const session = useSessionStore();
-  session.session = { token: 'token', player: ME };
+  session.session = { token: 'token', player: ME, email: null };
   const store = useGameStore();
   store.connect();
   return { store, session };

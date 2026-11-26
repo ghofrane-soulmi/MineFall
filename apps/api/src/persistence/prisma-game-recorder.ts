@@ -2,7 +2,7 @@
  * Writes a finished game with Prisma, in ONE transaction: upsert both guest users, then the
  * game with its mines and moves. Either everything is stored or nothing is.
  */
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client';
 import { GameRecorder, type FinishedGameRecord } from './game-recorder';
@@ -12,7 +12,7 @@ export function createPrismaClient(databaseUrl: string): PrismaClient {
 }
 
 @Injectable()
-export class PrismaGameRecorder extends GameRecorder implements OnModuleDestroy {
+export class PrismaGameRecorder extends GameRecorder {
   constructor(private readonly prisma: PrismaClient) {
     super();
   }
@@ -49,9 +49,5 @@ export class PrismaGameRecorder extends GameRecorder implements OnModuleDestroy 
       });
       return created.id;
     });
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.prisma.$disconnect();
   }
 }
