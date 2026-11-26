@@ -5,6 +5,7 @@ import { RoomsModule } from '../rooms/rooms.module';
 import { GameNotifier, SocketGameNotifier } from './game-notifier';
 import { GameGateway } from './game.gateway';
 import { GameService } from './game.service';
+import { MatchmakingService } from './matchmaking.service';
 import { Scheduler, TimeoutScheduler } from './scheduler';
 
 @Module({
@@ -12,6 +13,7 @@ import { Scheduler, TimeoutScheduler } from './scheduler';
   providers: [
     GameGateway,
     GameService,
+    MatchmakingService,
     SocketGameNotifier,
     // "When someone asks for GameNotifier / Scheduler, give them this implementation."
     { provide: GameNotifier, useExisting: SocketGameNotifier },

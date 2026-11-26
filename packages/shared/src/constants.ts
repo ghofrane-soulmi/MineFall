@@ -47,3 +47,6 @@ export const CHAT_EMOJIS = ['👍', '😂', '😮', '😢', '🔥', '💣'] as c
 export const CHAT_MAX_LENGTH = 120;
 /** One chat message per second per player. */
 export const CHAT_MIN_INTERVAL_MS = 1_000;
+
+/** Quick match (F14): after this long without an opponent, the client offers Minebot. */
+export const QUICK_MATCH_BOT_OFFER_MS = 30_000;

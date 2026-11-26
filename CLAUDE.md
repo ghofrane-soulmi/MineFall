@@ -96,6 +96,9 @@ windows, or one normal + one private window, to be two players).
   `GameService` with `toPlayerView(game, botId)` ONLY (no cheating). The bot acts through the
   same engine calls as a player, after a `botThink*Ms` delay scheduled with the `Scheduler`
   (key `<code>:bot`). `room:create { bot: 'easy' | 'normal' }` starts the game at once.
+- Quick match (F14): `MatchmakingService` keeps a FIFO queue (`queue:join` / `queue:leave`);
+  the second player triggers `GameService.createMatchedRoom` and both get `queue:matched
+{ code }`. A player whose last socket closes is removed from the queue.
 - `.vue` files are type-checked by `vue-tsc` but not linted (no eslint-plugin-vue yet).
 - In `apps/api`, keep NestJS constructor dependencies as VALUE imports (not `import type`):
   Nest reads them at runtime. ESLint is configured accordingly.

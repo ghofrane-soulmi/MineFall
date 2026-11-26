@@ -13,6 +13,8 @@ export const ClientEvents = {
   MoveDrop: 'move:drop',
   ChatSend: 'chat:send',
   GameRematch: 'game:rematch',
+  QueueJoin: 'queue:join',
+  QueueLeave: 'queue:leave',
 } as const;
 
 export const ServerEvents = {
@@ -20,6 +22,7 @@ export const ServerEvents = {
   RoomPlayers: 'room:players',
   PhaseChanged: 'phase:changed',
   DiceRolled: 'dice:rolled',
+  QueueMatched: 'queue:matched',
   MinesConfirmed: 'mines:confirmed',
   MoveResult: 'move:result',
   GameOver: 'game:over',

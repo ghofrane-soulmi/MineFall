@@ -154,6 +154,16 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     return { ok: true, data: { code: room.code } };
   }
 
+  /** Quick match: a room for two matched players; the game starts immediately. */
+  createMatchedRoom(first: GuestIdentity, second: GuestIdentity): string {
+    const room = this.rooms.create(first, this.now());
+    const error = this.rooms.addMember(room, second, this.now());
+    if (error) throw new Error(`createMatchedRoom: ${error}`); // matchmaking checked this
+    for (const player of [first, second]) this.notifier.joinRoom(player.id, room.code);
+    this.startGame(room, null);
+    return room.code;
+  }
+
   joinRoom(player: GuestIdentity, code: string): Ack {
     const current = this.rooms.findByPlayer(player.id);
     if (current) {

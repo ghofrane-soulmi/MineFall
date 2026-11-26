@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /** Home: nickname, create a room, join with a code, resume a running game. */
 import { normalizeRoomCode, ROOM_CODE_LENGTH, type BotLevel } from '@minefall/shared';
-import { computed, ref, watchEffect } from 'vue';
+import { computed, ref, watch, watchEffect } from 'vue';
 import { useRouter } from 'vue-router';
 import HowToPlay from '../components/HowToPlay.vue';
+import QuickMatchPanel from '../components/QuickMatchPanel.vue';
 import NicknameForm from '../components/NicknameForm.vue';
 import { useGameStore } from '../stores/game';
 import { useSessionStore } from '../stores/session';
@@ -26,6 +27,19 @@ async function createRoom(bot?: BotLevel): Promise<void> {
   const code = await store.createRoom(bot);
   creating.value = false;
   if (code) await router.push({ name: 'room', params: { code } });
+}
+
+// Quick match found an opponent: go to the new room.
+watch(
+  () => store.matchedCode,
+  (code) => {
+    if (code) void router.push({ name: 'room', params: { code } });
+  },
+);
+
+async function playBotInstead(): Promise<void> {
+  await store.leaveQueue();
+  await createRoom('normal');
 }
 
 async function joinRoom(): Promise<void> {
@@ -70,18 +84,40 @@ function changeNickname(): void {
           Back to your game ({{ store.room.code }})
         </RouterLink>
 
+        <QuickMatchPanel
+          v-else-if="store.queue === 'searching'"
+          @cancel="store.leaveQueue()"
+          @play-bot="playBotInstead"
+        />
+
         <button
-          v-else
+          v-if="!store.room && store.queue === 'idle'"
+          type="button"
+          class="w-full rounded-xl bg-emerald-500 py-3.5 text-lg font-black text-night transition hover:brightness-110 disabled:opacity-50"
+          :disabled="creating || store.connection !== 'connected'"
+          data-testid="play-now"
+          @click="store.joinQueue()"
+        >
+          Play now
+          <span class="block text-xs font-semibold opacity-70">We find you an opponent</span>
+        </button>
+
+        <button
+          v-if="!store.room && store.queue === 'idle'"
           type="button"
           class="w-full rounded-xl bg-mine py-3 font-bold text-night transition hover:brightness-110 disabled:opacity-50"
           :disabled="creating || store.connection === 'offline'"
           data-testid="create-room"
           @click="createRoom()"
         >
-          {{ creating ? 'Creating…' : 'Create room' }}
+          {{ creating ? 'Creating…' : 'Create a private room' }}
         </button>
 
-        <form v-if="!store.room" class="flex gap-2" @submit.prevent="joinRoom">
+        <form
+          v-if="!store.room && store.queue === 'idle'"
+          class="flex gap-2"
+          @submit.prevent="joinRoom"
+        >
           <label for="join-code" class="sr-only">Room code</label>
           <input
             id="join-code"
@@ -101,7 +137,7 @@ function changeNickname(): void {
           </button>
         </form>
 
-        <div v-if="!store.room" class="border-t border-line pt-4">
+        <div v-if="!store.room && store.queue === 'idle'" class="border-t border-line pt-4">
           <p class="mb-2 text-sm font-semibold">
             Alone? Play against <span class="text-mine">Minebot</span> 🤖
           </p>

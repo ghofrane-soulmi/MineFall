@@ -175,6 +175,11 @@ export interface PlayerConnectionPayload {
   readonly graceEndsAt: number | null;
 }
 
+/** Quick match found an opponent: the room is created and the game is starting. */
+export interface QueueMatchedPayload {
+  readonly code: string;
+}
+
 export interface ChatMessagePayload {
   readonly id: string;
   readonly playerId: PlayerId;

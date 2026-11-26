@@ -35,6 +35,7 @@ import {
   type GameSocket,
 } from './game-notifier';
 import { GameService } from './game.service';
+import { MatchmakingService } from './matchmaking.service';
 
 const INVALID_PAYLOAD: AckFailure = { ok: false, error: 'INVALID_PAYLOAD' };
 
@@ -47,6 +48,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   constructor(
     private readonly auth: AuthService,
     private readonly game: GameService,
+    private readonly matchmaking: MatchmakingService,
     private readonly notifier: SocketGameNotifier,
   ) {}
 
@@ -78,6 +80,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       return;
     }
     this.socketCount.delete(player.id);
+    this.matchmaking.leave(player.id); // nobody gets matched with a closed tab
     this.game.playerDisconnected(player.id);
   }
 
@@ -134,6 +137,16 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const payload = parseChatSend(body);
     if (!payload) return INVALID_PAYLOAD;
     return this.safely(() => this.game.sendChat(socket.data.player.id, payload));
+  }
+
+  @SubscribeMessage(ClientEvents.QueueJoin)
+  joinQueue(@ConnectedSocket() socket: GameSocket): Ack {
+    return this.safely(() => this.matchmaking.join(socket.data.player));
+  }
+
+  @SubscribeMessage(ClientEvents.QueueLeave)
+  leaveQueue(@ConnectedSocket() socket: GameSocket): Ack {
+    return this.safely(() => this.matchmaking.leave(socket.data.player.id));
   }
 
   /** An unexpected error must still answer the client, never leave its ack hanging. */

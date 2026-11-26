@@ -164,6 +164,35 @@ describe('game store: actions', () => {
     ]);
   });
 
+  it('quick match: searching until the server pairs us, then remembers the room', async () => {
+    const { store } = setup();
+    await store.joinQueue();
+    expect(store.queue).toBe('searching');
+    socket.serverEmit(ServerEvents.QueueMatched, { code: 'QM1234' });
+    expect(store.queue).toBe('idle');
+    expect(store.matchedCode).toBe('QM1234');
+  });
+
+  it('quick match: a match arriving before the ack does not leave us "searching"', async () => {
+    const { store } = setup();
+    const original = socket.emitWithAck.bind(socket);
+    socket.emitWithAck = (event, payload) => {
+      socket.serverEmit(ServerEvents.QueueMatched, { code: 'FAST12' });
+      return original(event, payload);
+    };
+    await store.joinQueue();
+    expect(store.queue).toBe('idle');
+    expect(store.matchedCode).toBe('FAST12');
+  });
+
+  it('quick match: cancel goes back to idle and tells the server', async () => {
+    const { store } = setup();
+    await store.joinQueue();
+    await store.leaveQueue();
+    expect(store.queue).toBe('idle');
+    expect(socket.sent.map((m) => m.event)).toContain(ClientEvents.QueueLeave);
+  });
+
   it('a refused action shows a readable error', async () => {
     const { store } = setup();
     socket.acks.set(ClientEvents.MoveDrop, { ok: false, error: 'COLUMN_BLOCKED' });

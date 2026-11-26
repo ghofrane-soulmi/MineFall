@@ -19,6 +19,7 @@ import type {
   MoveResultPayload,
   PhaseChangedPayload,
   PlayerConnectionPayload,
+  QueueMatchedPayload,
   RoomJoinPayload,
   RoomPlayersPayload,
   RoomReadyPayload,
@@ -38,6 +39,8 @@ export interface ClientToServerEvents {
   [ClientEvents.MinesPlace]: (payload: MinesPlacePayload, ack: AckCallback) => void;
   [ClientEvents.MoveDrop]: (payload: MoveDropPayload, ack: AckCallback) => void;
   [ClientEvents.GameRematch]: (payload: EmptyPayload, ack: AckCallback) => void;
+  [ClientEvents.QueueJoin]: (payload: EmptyPayload, ack: AckCallback) => void;
+  [ClientEvents.QueueLeave]: (payload: EmptyPayload, ack: AckCallback) => void;
   [ClientEvents.ChatSend]: (payload: ChatSendPayload, ack: AckCallback) => void;
 }
 
@@ -46,6 +49,7 @@ export interface ServerToClientEvents {
   [ServerEvents.RoomPlayers]: (payload: RoomPlayersPayload) => void;
   [ServerEvents.PhaseChanged]: (payload: PhaseChangedPayload) => void;
   [ServerEvents.DiceRolled]: (payload: StartingRoll) => void;
+  [ServerEvents.QueueMatched]: (payload: QueueMatchedPayload) => void;
   [ServerEvents.MinesConfirmed]: (payload: MinesConfirmedPayload) => void;
   [ServerEvents.MoveResult]: (payload: MoveResultPayload) => void;
   [ServerEvents.GameOver]: (payload: GameOverPayload) => void;

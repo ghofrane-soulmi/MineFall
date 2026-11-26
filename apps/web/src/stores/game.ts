@@ -69,6 +69,9 @@ export const useGameStore = defineStore('game', () => {
   const chat = ref<ChatMessagePayload[]>([]);
   const reactions = ref<Reaction[]>([]);
   const error = ref<string | null>(null);
+  /** Quick match: searching for an opponent, and the room we were matched into. */
+  const queue = ref<'idle' | 'searching'>('idle');
+  const matchedCode = ref<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Derived state
@@ -103,6 +106,7 @@ export const useGameStore = defineStore('game', () => {
 
     s.on('connect', () => {
       connection.value = 'connected';
+      queue.value = 'idle'; // the server drops a disconnected player from the queue
     });
     s.on('disconnect', () => {
       connection.value = 'offline';
@@ -144,6 +148,10 @@ export const useGameStore = defineStore('game', () => {
         dice.value = null;
         lastMove.value = null;
       }
+    });
+    s.on(ServerEvents.QueueMatched, ({ code }) => {
+      queue.value = 'idle';
+      matchedCode.value = code;
     });
     s.on(ServerEvents.DiceRolled, (roll) => {
       dice.value = roll;
@@ -197,6 +205,19 @@ export const useGameStore = defineStore('game', () => {
     const payload = bot ? { bot } : {};
     const ack = await request((s) => s.emitWithAck(ClientEvents.RoomCreate, payload));
     return ack.ok ? ack.data.code : null;
+  }
+
+  /** Quick match: wait for an opponent; `matchedCode` is set when the server pairs us. */
+  async function joinQueue(): Promise<Ack> {
+    matchedCode.value = null;
+    const ack = await request((s) => s.emitWithAck(ClientEvents.QueueJoin, {}));
+    if (ack.ok && matchedCode.value === null) queue.value = 'searching';
+    return ack;
+  }
+
+  async function leaveQueue(): Promise<Ack> {
+    queue.value = 'idle';
+    return request((s) => s.emitWithAck(ClientEvents.QueueLeave, {}), { silent: true });
   }
 
   async function joinRoom(code: string): Promise<Ack> {
@@ -297,6 +318,8 @@ export const useGameStore = defineStore('game', () => {
     chat,
     reactions,
     error,
+    queue,
+    matchedCode,
     // derived
     myId,
     phase,
@@ -317,6 +340,8 @@ export const useGameStore = defineStore('game', () => {
     requestRematch,
     sendChat,
     leaveRoom,
+    joinQueue,
+    leaveQueue,
     clearError,
     dismissDice,
   };

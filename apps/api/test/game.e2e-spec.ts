@@ -195,6 +195,45 @@ describe('Minefall API (integration)', () => {
     });
   });
 
+  describe('quick match', () => {
+    it('pairs two waiting players and starts their game', async () => {
+      const first = await joinAsGuest(server, 'Quick1');
+      const second = await joinAsGuest(server, 'Quick2');
+
+      expect(await first.socket.emitWithAck(ClientEvents.QueueJoin, {})).toEqual({ ok: true });
+      expect(await second.socket.emitWithAck(ClientEvents.QueueJoin, {})).toEqual({ ok: true });
+
+      const [a, b] = await Promise.all([
+        first.rec.waitFor(ServerEvents.QueueMatched),
+        second.rec.waitFor(ServerEvents.QueueMatched),
+      ]);
+      expect(a.code).toBe(b.code);
+      const state = await second.rec.waitFor(ServerEvents.RoomState, (s) => s.game !== null);
+      expect(state.room.code).toBe(a.code);
+      expect(state.game?.phase).toBe('placement');
+      close(first, second);
+    });
+
+    it('cancel and closing the tab both leave the queue', async () => {
+      const quitter = await joinAsGuest(server, 'Quitter');
+      const leaver = await joinAsGuest(server, 'Leaver');
+      await quitter.socket.emitWithAck(ClientEvents.QueueJoin, {});
+      expect(await quitter.socket.emitWithAck(ClientEvents.QueueLeave, {})).toEqual({ ok: true });
+      await leaver.socket.emitWithAck(ClientEvents.QueueJoin, {});
+      leaver.socket.close();
+      await new Promise((resolve) => setTimeout(resolve, 200)); // let the disconnect land
+
+      // A newcomer finds nobody: neither the cancelled nor the disconnected player.
+      const newcomer = await joinAsGuest(server, 'Newcomer');
+      await newcomer.socket.emitWithAck(ClientEvents.QueueJoin, {});
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      expect(newcomer.rec.all(ServerEvents.QueueMatched)).toEqual([]);
+      expect(quitter.rec.all(ServerEvents.QueueMatched)).toEqual([]);
+      await newcomer.socket.emitWithAck(ClientEvents.QueueLeave, {});
+      close(quitter, newcomer);
+    });
+  });
+
   describe('chat', () => {
     it('delivers presets, emojis and sanitised text; rejects spam and bad payloads', async () => {
       const { host, guest } = await startedRoom(server);
