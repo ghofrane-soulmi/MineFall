@@ -1,6 +1,6 @@
 /**
  * Socket.IO event names (SPEC section 5), shared by api and web so no event is ever a
- * string literal in a gateway or component. Payload types are added in Milestone 2.
+ * string literal in a gateway or component. Payload types live in protocol/socket.ts.
  */
 export const SOCKET_NAMESPACE = '/game';
 
@@ -19,6 +19,7 @@ export const ServerEvents = {
   RoomState: 'room:state',
   RoomPlayers: 'room:players',
   PhaseChanged: 'phase:changed',
+  DiceRolled: 'dice:rolled',
   MinesConfirmed: 'mines:confirmed',
   MoveResult: 'move:result',
   GameOver: 'game:over',
@@ -30,6 +31,3 @@ export const ServerEvents = {
 
 export type ClientEventName = (typeof ClientEvents)[keyof typeof ClientEvents];
 export type ServerEventName = (typeof ServerEvents)[keyof typeof ServerEvents];
-
-/** Every client -> server event is acknowledged with this shape. */
-export type Ack<E extends string = string> = { ok: true } | { ok: false; error: E };

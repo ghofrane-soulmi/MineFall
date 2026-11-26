@@ -10,3 +10,6 @@ export * from './engine/mines';
 export * from './engine/dice';
 export * from './engine/game';
 export * from './engine/view';
+export type * from './protocol/payloads';
+export type * from './protocol/socket';
+export * from './protocol/validation';

@@ -33,20 +33,27 @@ function cellsInPayload(payload: unknown): Cell[] {
 }
 
 /**
- * Asserts the view sent to `viewerId` leaks none of the opponent's unexploded mines.
+ * Lists every problem in the view sent to `viewerId` (empty = safe). Plain function, no
+ * `expect` inside, so the random-games test below stays fast.
  * A cell the viewer mined themselves may legitimately appear (they chose it).
  */
-function assertNoOpponentMineLeak(state: GameState, viewerId: PlayerId): void {
-  if (state.phase === 'finished') return; // everything is revealed at the end, by design
+function findLeaks(state: GameState, viewerId: PlayerId): string[] {
+  if (state.phase === 'finished') return []; // everything is revealed at the end, by design
   const view = toPlayerView(state, viewerId);
   const ownMines = state.mines[viewerId] ?? [];
   const secret = (state.mines[getOpponentId(state, viewerId)] ?? []).filter(
     (m) => !ownMines.some((own) => sameCell(own, m)),
   );
-  const leaked = cellsInPayload(view).filter((c) => secret.some((m) => sameCell(m, c)));
-  expect(leaked, `opponent mines leaked to ${viewerId}`).toEqual([]);
-  expect(view).not.toHaveProperty('mines');
-  expect(view.revealedMines).toBeNull();
+  const problems = cellsInPayload(view)
+    .filter((c) => secret.some((m) => sameCell(m, c)))
+    .map((c) => `opponent mine (${c.col},${c.row}) leaked to ${viewerId}`);
+  if ('mines' in view) problems.push(`raw "mines" field sent to ${viewerId}`);
+  if (view.revealedMines !== null) problems.push(`mines revealed early to ${viewerId}`);
+  return problems;
+}
+
+function assertNoOpponentMineLeak(state: GameState, viewerId: PlayerId): void {
+  expect(findLeaks(state, viewerId)).toEqual([]);
 }
 
 describe('toPlayerView: content', () => {
@@ -119,19 +126,20 @@ describe('toPlayerView: content', () => {
 
 describe('toPlayerView: no leak during random full games', () => {
   it('holds at every step of 300 random games (random mines, random moves)', () => {
+    const problems: string[] = [];
     for (let seed = 1; seed <= 300; seed++) {
       const rng = seededRng(seed);
       let state = expectOk(finishPlacement(createGame(RED, YELLOW), rng)).state;
       let steps = 0;
       while (state.phase === 'playing') {
-        assertNoOpponentMineLeak(state, RED);
-        assertNoOpponentMineLeak(state, YELLOW);
+        problems.push(...findLeaks(state, RED), ...findLeaks(state, YELLOW));
         state = expectOk(applyTimeoutMove(state, rng)).state;
         steps++;
         // 42 cells + at most 4 explosions: a game can never last longer.
-        expect(steps).toBeLessThanOrEqual(46);
+        if (steps > 46) problems.push(`seed ${seed}: game did not end after 46 moves`);
       }
-      expect(state.result).not.toBeNull();
+      if (state.result === null) problems.push(`seed ${seed}: finished without a result`);
     }
-  });
+    expect(problems).toEqual([]);
+  }, 20_000);
 });

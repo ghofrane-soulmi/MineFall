@@ -13,5 +13,18 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
     },
   },
+  {
+    // NestJS reads constructor parameter types at runtime (decorator metadata) to inject
+    // dependencies, so those imports must stay value imports. With these parser options,
+    // consistent-type-imports leaves files that use decorators alone.
+    files: ['apps/api/**/*.ts'],
+    languageOptions: {
+      parserOptions: { emitDecoratorMetadata: true, experimentalDecorators: true },
+    },
+    rules: {
+      // Nest modules are empty classes carrying a @Module decorator.
+      '@typescript-eslint/no-extraneous-class': ['error', { allowWithDecorator: true }],
+    },
+  },
   prettier,
 );

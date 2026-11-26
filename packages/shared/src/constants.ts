@@ -19,3 +19,17 @@ export const TURN_DURATION_MS = 20_000;
 export const DIE_FACES = 6;
 export const DICE_PER_PLAYER = 2;
 export const MAX_DICE_ROUNDS = 50;
+
+/** Disconnected players have this long to come back before forfeiting (SPEC F11). */
+export const DISCONNECT_GRACE_MS = 60_000;
+
+/** Rooms with no activity for this long are removed from memory (SPEC section 8). */
+export const ROOM_IDLE_TIMEOUT_MS = 30 * 60_000;
+
+/** Guest nicknames (SPEC F1). */
+export const NICKNAME_MIN_LENGTH = 3;
+export const NICKNAME_MAX_LENGTH = 16;
+
+/** Room codes: 6 characters, without look-alikes (0/O, 1/I/L) so they are easy to read aloud. */
+export const ROOM_CODE_LENGTH = 6;
+export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';

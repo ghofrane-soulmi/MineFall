@@ -20,7 +20,7 @@ Full specification: [docs/SPEC.md](docs/SPEC.md). Read it before any non-trivial
 | Database                   | PostgreSQL + Prisma (users, finished games, mines, moves)                         |
 | Live game state            | In-memory `Map` per room (Redis in V2)                                            |
 | Auth                       | Guest token (nickname only); JWT accounts in V2                                   |
-| Tests                      | Vitest (engine), Jest/Supertest (API), Playwright (2-tab E2E)                     |
+| Tests                      | Vitest (engine + API), Supertest (HTTP), Playwright (2-tab E2E)                   |
 | Tooling                    | Strict TypeScript, ESLint + Prettier                                              |
 | Deploy                     | Docker Compose on a VPS behind Nginx (HTTPS, WS upgrade), GitHub Actions CI       |
 
@@ -37,7 +37,8 @@ minefall/
 │  └─ shared/         @minefall/shared
 │     └─ src/
 │        ├─ engine/   pure game engine (no I/O, no sockets, no timers)
-│        ├─ types/    state, payload and view types
+│        ├─ protocol/ payload types, typed Socket.IO event maps, input validators
+│        ├─ types/    game state, engine and view types
 │        └─ events.ts event name constants
 ├─ docs/SPEC.md
 ├─ CLAUDE.md
@@ -52,15 +53,29 @@ TypeScript is pinned to 6.0.x because typescript-eslint does not support TS 7 ye
 
 ```bash
 pnpm install                          # install all workspaces
-pnpm test                             # run all tests
+pnpm test                             # run all tests (shared + api)
 pnpm --filter @minefall/shared test   # engine tests only
 pnpm --filter @minefall/shared test:coverage
+pnpm --filter @minefall/api dev       # API on http://localhost:3000 (watch mode)
+pnpm --filter @minefall/api test      # API unit + integration tests (real sockets)
+pnpm --filter @minefall/api build     # compile to apps/api/dist (builds shared first)
 pnpm lint                             # ESLint across workspaces
 pnpm format                           # Prettier write
 pnpm typecheck                        # tsc --noEmit across workspaces
 ```
 
-Commands for `apps/api` and `apps/web` are added when those milestones start.
+Commands for `apps/web` are added when that milestone starts.
+
+### Build notes
+
+- `@minefall/shared` is consumed as TypeScript source by Vite/Vitest (package `default`
+  export) and as a CommonJS build (`dist/`, `require` export) by the API at runtime. The API
+  scripts rebuild it automatically (`predev`, `prebuild`, `pretypecheck`).
+- NestJS 12 ships as ES modules, so API tests use **Vitest** (Jest cannot load ESM on
+  Node 22). Vite 8 compiles with Oxc, which emits the decorator metadata Nest DI needs.
+  (decided 2026-11-26)
+- In `apps/api`, keep NestJS constructor dependencies as VALUE imports (not `import type`):
+  Nest reads them at runtime. ESLint is configured accordingly.
 
 ## Architecture rules (SPEC section 6 & 10 — non-negotiable)
 
