@@ -62,6 +62,9 @@ pnpm --filter @minefall/api build     # compile to apps/api/dist (builds shared 
 pnpm --filter @minefall/web dev       # web on http://localhost:5173 (proxies /auth + /socket.io to :3000)
 pnpm --filter @minefall/web test      # web unit tests (store, components, composables)
 pnpm --filter @minefall/web test:e2e  # Playwright: 2 browsers play a full game (ports 3100/5174)
+docker compose up -d postgres         # dev database on localhost:5442
+pnpm --filter @minefall/api db:migrate  # create/apply a Prisma migration (dev)
+docker compose up --build             # full stack (postgres, migrate, api, web) on :8090
 pnpm lint                             # ESLint across workspaces
 pnpm format                           # Prettier write
 pnpm typecheck                        # tsc --noEmit across workspaces
@@ -82,6 +85,13 @@ windows, or one normal + one private window, to be two players).
   folds server events into the client copy of the game: it copies server decisions
   (landing row, outcome, blocked columns, next player) and never computes a rule.
   Any `room:state` replaces the client copy wholesale (resync).
+- Persistence: `GameRecorder` (abstract) -> `PrismaGameRecorder` when `DATABASE_URL` is set,
+  else `NoopGameRecorder`. Saving happens in the background after game over and must never
+  break live play. The Prisma client is generated into `apps/api/src/generated` (git-ignored;
+  the api `pre*` scripts regenerate it). Real-DB tests run only with `TEST_DATABASE_URL`.
+- Local ports avoid other projects on this machine: Postgres 5442, Docker web 8090.
+- E2E against a running deployment: `E2E_BASE_URL=http://localhost:8090 pnpm --filter
+@minefall/web exec playwright test`.
 - `.vue` files are type-checked by `vue-tsc` but not linted (no eslint-plugin-vue yet).
 - In `apps/api`, keep NestJS constructor dependencies as VALUE imports (not `import type`):
   Nest reads them at runtime. ESLint is configured accordingly.

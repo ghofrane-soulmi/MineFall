@@ -11,6 +11,7 @@ import type {
 } from '@minefall/shared';
 import { DEFAULT_TIMINGS, type AppConfig, type GameTimings } from '../src/config/app-config';
 import { GameNotifier } from '../src/game/game-notifier';
+import { GameRecorder, type FinishedGameRecord } from '../src/persistence/game-recorder';
 import { Scheduler } from '../src/game/scheduler';
 
 type ServerEvent = keyof ServerToClientEvents;
@@ -106,6 +107,7 @@ export function testConfig(timings: Partial<GameTimings> = {}): AppConfig {
     port: 0,
     corsOrigins: ['http://localhost:5173'],
     jwtSecret: 'test-secret',
+    databaseUrl: null,
     timings: { ...DEFAULT_TIMINGS, ...timings },
   };
 }
@@ -124,4 +126,15 @@ export function cellsIn(payload: unknown): { col: number; row: number }[] {
     return value;
   });
   return found;
+}
+
+export class FakeRecorder extends GameRecorder {
+  readonly recorded: FinishedGameRecord[] = [];
+  failWith: Error | null = null;
+
+  record(game: FinishedGameRecord): Promise<string> {
+    if (this.failWith) return Promise.reject(this.failWith);
+    this.recorded.push(game);
+    return Promise.resolve(`game-${this.recorded.length}`);
+  }
 }

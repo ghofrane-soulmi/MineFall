@@ -6,6 +6,7 @@ import {
   CAROL,
   FakeClock,
   FakeNotifier,
+  FakeRecorder,
   FakeScheduler,
   cellsIn,
   sequenceRng,
@@ -36,14 +37,15 @@ function setup(rng = aliceStarts()) {
   const notifier = new FakeNotifier();
   const scheduler = new FakeScheduler();
   const rooms = new RoomsService();
+  const recorder = new FakeRecorder();
   const config = testConfig({
     placementMs: PLACEMENT_MS,
     turnMs: TURN_MS,
     disconnectGraceMs: GRACE_MS,
     roomIdleMs: 30 * 60_000,
   });
-  const service = new GameService(rooms, scheduler, notifier, config, clock.now, rng);
-  return { service, rooms, notifier, scheduler, clock };
+  const service = new GameService(rooms, scheduler, notifier, recorder, config, clock.now, rng);
+  return { service, rooms, notifier, scheduler, clock, recorder };
 }
 
 type Ctx = ReturnType<typeof setup>;
@@ -326,6 +328,50 @@ describe('GameService', () => {
         endsAt: null,
       });
       expect([...ctx.scheduler.tasks.keys()].filter((k) => k.startsWith(code))).toEqual([]);
+    });
+  });
+
+  describe('saving finished games', () => {
+    function playToWin(ctx: Ctx): void {
+      for (const [player, col] of [
+        [ALICE, 4],
+        [BOB, 5],
+        [ALICE, 4],
+        [BOB, 5],
+        [ALICE, 4],
+        [BOB, 5],
+        [ALICE, 4],
+      ] as const) {
+        ctx.clock.advance(1_000);
+        drop(ctx, player.id, col);
+      }
+    }
+
+    it('records the game with players, result, mines and timed moves', () => {
+      const ctx = setup();
+      const code = playing(ctx);
+      const startedAt = ctx.rooms.get(code)?.gameStartedAt ?? 0;
+      playToWin(ctx);
+
+      expect(ctx.recorder.recorded).toHaveLength(1);
+      const record = ctx.recorder.recorded[0];
+      expect(record?.roomCode).toBe(code);
+      expect(record?.players).toEqual([ALICE, BOB]);
+      expect(record?.result).toMatchObject({ type: 'win', winnerId: ALICE.id });
+      expect(record?.startedAt.getTime()).toBe(startedAt);
+      expect(record?.mines).toHaveLength(4);
+      expect(record?.moves).toHaveLength(7);
+      expect(record?.moves[0]?.playedAt.getTime()).toBe(startedAt + 1_000);
+    });
+
+    it('a database failure is logged and never breaks the game', async () => {
+      const ctx = setup();
+      ctx.recorder.failWith = new Error('database down');
+      const code = playing(ctx);
+      playToWin(ctx);
+      await Promise.resolve(); // let the rejected save settle
+      expect(ctx.rooms.get(code)?.game?.phase).toBe('finished');
+      expect(ctx.notifier.last(BOB.id, ServerEvents.GameOver).result.type).toBe('win');
     });
   });
 

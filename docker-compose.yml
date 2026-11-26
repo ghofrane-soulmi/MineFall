@@ -1,0 +1,61 @@
+# Minefall, full stack:  docker compose up --build   ->  http://localhost:8090
+# Development only needs the database:  docker compose up -d postgres
+# Ports are configurable to avoid clashes with other local projects.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: minefall
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-minefall}
+      POSTGRES_DB: minefall
+    ports:
+      - '${POSTGRES_PORT:-5442}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U minefall -d minefall']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: applies Prisma migrations, then exits. The API waits for it.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: build
+    working_dir: /repo/apps/api
+    command: ['pnpm', 'db:deploy']
+    environment:
+      DATABASE_URL: postgresql://minefall:${POSTGRES_PASSWORD:-minefall}@postgres:5432/minefall
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      PORT: '3000'
+      DATABASE_URL: postgresql://minefall:${POSTGRES_PASSWORD:-minefall}@postgres:5432/minefall
+      JWT_SECRET: ${JWT_SECRET:-local-docker-secret-change-me}
+      CORS_ORIGIN: ${PUBLIC_URL:-http://localhost:8090}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - '${WEB_PORT:-8090}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

@@ -21,6 +21,8 @@ export interface AppConfig {
   readonly port: number;
   readonly corsOrigins: readonly string[];
   readonly jwtSecret: string;
+  /** PostgreSQL connection string; null = run without saving finished games. */
+  readonly databaseUrl: string | null;
   readonly timings: GameTimings;
 }
 
@@ -54,6 +56,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       .map((origin) => origin.trim())
       .filter(Boolean),
     jwtSecret,
+    databaseUrl: env['DATABASE_URL'] || null,
     timings: DEFAULT_TIMINGS,
   };
 }

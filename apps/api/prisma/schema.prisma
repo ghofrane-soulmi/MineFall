@@ -1,0 +1,97 @@
+// Minefall persistence (SPEC section 6). Live games stay in memory; only users and FINISHED
+// games are stored here.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum GameResultType {
+  win
+  draw
+  forfeit
+}
+
+enum MoveOutcome {
+  placed
+  exploded
+}
+
+model User {
+  id           String   @id @db.Uuid
+  nickname     String   @db.VarChar(16)
+  email        String?  @unique
+  passwordHash String?  @map("password_hash")
+  isGuest      Boolean  @default(true) @map("is_guest")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  gamesAsPlayer1 Game[]     @relation("Player1")
+  gamesAsPlayer2 Game[]     @relation("Player2")
+  gamesWon       Game[]     @relation("Winner")
+  mines          GameMine[]
+  moves          GameMove[]
+
+  @@map("users")
+}
+
+model Game {
+  id        String         @id @default(uuid()) @db.Uuid
+  roomCode  String         @map("room_code") @db.VarChar(6)
+  player1Id String         @map("player1_id") @db.Uuid
+  player2Id String         @map("player2_id") @db.Uuid
+  winnerId  String?        @map("winner_id") @db.Uuid
+  result    GameResultType
+  startedAt DateTime       @map("started_at")
+  endedAt   DateTime       @map("ended_at")
+
+  player1 User       @relation("Player1", fields: [player1Id], references: [id])
+  player2 User       @relation("Player2", fields: [player2Id], references: [id])
+  winner  User?      @relation("Winner", fields: [winnerId], references: [id])
+  mines   GameMine[]
+  moves   GameMove[]
+
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([endedAt])
+  @@map("games")
+}
+
+model GameMine {
+  id             String  @id @default(uuid()) @db.Uuid
+  gameId         String  @map("game_id") @db.Uuid
+  ownerId        String  @map("owner_id") @db.Uuid
+  col            Int     @db.SmallInt
+  row            Int     @db.SmallInt
+  exploded       Boolean
+  explodedAtMove Int?    @map("exploded_at_move") @db.SmallInt
+
+  game  Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  owner User @relation(fields: [ownerId], references: [id])
+
+  @@index([gameId])
+  @@map("game_mines")
+}
+
+model GameMove {
+  id         String      @id @default(uuid()) @db.Uuid
+  gameId     String      @map("game_id") @db.Uuid
+  moveNumber Int         @map("move_number") @db.SmallInt
+  playerId   String      @map("player_id") @db.Uuid
+  column     Int         @db.SmallInt
+  landedRow  Int         @map("landed_row") @db.SmallInt
+  outcome    MoveOutcome
+  /// The server played this move because the turn timer ran out.
+  timedOut   Boolean     @default(false) @map("timed_out")
+  createdAt  DateTime    @map("created_at")
+
+  game   Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player User @relation(fields: [playerId], references: [id])
+
+  @@unique([gameId, moveNumber])
+  @@map("game_moves")
+}

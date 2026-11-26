@@ -11,3 +11,4 @@ coverage/
 .idea/
 test-results/
 playwright-report/
+apps/api/src/generated/

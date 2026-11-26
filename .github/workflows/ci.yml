@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.18.3'
+
+jobs:
+  checks:
+    name: Lint, typecheck, unit + integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: minefall
+          POSTGRES_PASSWORD: minefall
+          POSTGRES_DB: minefall
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U minefall" --health-interval 5s --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://minefall:minefall@localhost:5432/minefall
+      TEST_DATABASE_URL: postgresql://minefall:minefall@localhost:5432/minefall
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm install -g pnpm@${{ env.PNPM_VERSION }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - name: Apply database migrations
+        run: pnpm --filter @minefall/api db:deploy
+      - run: pnpm test
+
+  e2e:
+    name: End-to-end (Playwright, 2 browsers)
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm install -g pnpm@${{ env.PNPM_VERSION }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @minefall/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @minefall/web test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: apps/web/test-results
+          retention-days: 7
+
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build

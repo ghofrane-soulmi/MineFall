@@ -4,7 +4,13 @@
  * (re)starts server timers and emits events. Game state leaves only via `toPlayerView`.
  */
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common';
 import {
   CHAT_MIN_INTERVAL_MS,
   ServerEvents,
@@ -31,6 +37,7 @@ import {
   type Rng,
 } from '@minefall/shared';
 import { APP_CONFIG, CLOCK, RNG, type AppConfig, type Clock } from '../config/app-config';
+import { GameRecorder, toFinishedGameRecord } from '../persistence/game-recorder';
 import {
   findMember,
   isGameRunning,
@@ -52,6 +59,7 @@ const graceTimerKey = (code: string, playerId: PlayerId): string => `${code}:gra
 
 @Injectable()
 export class GameService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(GameService.name);
   private cleanupInterval: NodeJS.Timeout | null = null;
   /** Last chat message time per player, for the 1 message / second limit. */
   private readonly lastChatAt = new Map<PlayerId, number>();
@@ -60,6 +68,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     private readonly rooms: RoomsService,
     private readonly scheduler: Scheduler,
     private readonly notifier: GameNotifier,
+    private readonly recorder: GameRecorder,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(CLOCK) private readonly now: Clock,
     @Inject(RNG) private readonly rng: Rng,
@@ -284,6 +293,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     const { placementMs } = this.config.timings;
     room.game = createGame(first, second);
     room.gameStartedAt = this.now();
+    room.moveTimes = [];
     room.phaseEndsAt = this.now() + placementMs;
     for (const member of room.members) {
       member.ready = false;
@@ -348,6 +358,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
         for (const member of room.members) this.sendRoomState(room, member.id);
         return;
       case 'moveApplied': {
+        room.moveTimes.push(this.now());
         if (event.nextPlayerId) this.startTurnTimer(room, event.turnId);
         const { move } = event;
         this.notifier.toRoom(room.code, ServerEvents.MoveResult, {
@@ -393,6 +404,24 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
       moveCount: game.moveHistory.length,
     });
     this.notifier.toRoom(room.code, ServerEvents.PhaseChanged, { phase: 'finished', endsAt: null });
+    this.saveFinishedGame(room);
+  }
+
+  /** Stores the game in the background: a database problem must never break live play. */
+  private saveFinishedGame(room: Room): void {
+    const game = room.game;
+    if (!game) return;
+    const record = toFinishedGameRecord({
+      roomCode: room.code,
+      game,
+      nicknames: new Map(room.members.map((m) => [m.id, m.nickname])),
+      startedAt: room.gameStartedAt ?? this.now(),
+      endedAt: this.now(),
+      moveTimes: room.moveTimes,
+    });
+    this.recorder.record(record).catch((error: unknown) => {
+      this.logger.error(`Could not save game of room ${room.code}`, error);
+    });
   }
 
   private resetToLobby(room: Room): void {

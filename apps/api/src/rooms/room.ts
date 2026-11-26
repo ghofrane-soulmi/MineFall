@@ -32,6 +32,8 @@ export interface Room {
   /** End of the current placement phase or turn (epoch ms). */
   phaseEndsAt: number | null;
   gameStartedAt: number | null;
+  /** When each move of the current game was played (epoch ms), for the saved history. */
+  moveTimes: number[];
   lastActivityAt: number;
   /** Disconnected players during a game -> when they forfeit (epoch ms). */
   graceEndsAt: Map<PlayerId, number>;

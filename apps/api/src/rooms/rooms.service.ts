@@ -27,6 +27,7 @@ export class RoomsService {
       startingRoll: null,
       phaseEndsAt: null,
       gameStartedAt: null,
+      moveTimes: [],
       lastActivityAt: now,
       graceEndsAt: new Map(),
     };
