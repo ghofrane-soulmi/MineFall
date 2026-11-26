@@ -108,6 +108,11 @@ windows, or one normal + one private window, to be two players).
   app: the `Database` provider (`client` is null without DATABASE_URL -> 503
   ACCOUNTS_DISABLED). Every new HTTP path prefix must be added to the Vite proxy
   (`vite.config.ts`) AND `apps/web/docker/nginx.conf`.
+- Deploy: web on Vercel (`apps/web/vercel.json`, `VITE_API_URL` = API origin) + API on
+  Render (`render.yaml`, Docker, start = `prisma migrate deploy && node dist/main.js`,
+  `CORS_ORIGIN` = Vercel origin). The API image bakes Prisma's engine at build time (the
+  runtime user cannot write node_modules). Cross-origin mode is tested by running the E2E
+  suite with `E2E_BASE_URL` against a web build that uses `VITE_API_URL`.
 - `.vue` files are type-checked by `vue-tsc` but not linted (no eslint-plugin-vue yet).
 - In `apps/api`, keep NestJS constructor dependencies as VALUE imports (not `import type`):
   Nest reads them at runtime. ESLint is configured accordingly.

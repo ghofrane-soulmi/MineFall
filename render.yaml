@@ -1,0 +1,31 @@
+# Render Blueprint: the Minefall game server + its PostgreSQL database.
+# Render dashboard -> New -> Blueprint -> pick this repository. See deploy/VERCEL_RENDER.md.
+services:
+  - type: web
+    name: minefall-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    # Free plans have no pre-deploy step: apply migrations, then start the server.
+    dockerCommand: sh -c "npx prisma migrate deploy && node dist/main.js"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: minefall-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # Your Vercel address, e.g. https://minefall.vercel.app (asked when you create the Blueprint).
+      - key: CORS_ORIGIN
+        sync: false
+
+databases:
+  - name: minefall-db
+    plan: free
+    databaseName: minefall
+    user: minefall

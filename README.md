@@ -138,7 +138,16 @@ pnpm lint && pnpm typecheck
 | E2E    | Playwright                             | two browser contexts create, join and finish a game, with a page refresh mid-game                       |
 
 CI (GitHub Actions) runs lint, typecheck, all tests against a real PostgreSQL, the E2E test
-and the Docker builds on every push. Deployment: see [deploy/README.md](deploy/README.md).
+and the Docker builds on every push.
+
+## Deployment
+
+- **Vercel (web) + Render (game server + PostgreSQL)**, free:
+  [deploy/VERCEL_RENDER.md](deploy/VERCEL_RENDER.md) (`render.yaml` + `apps/web/vercel.json`)
+- **Your own VPS** with Docker Compose + Nginx + HTTPS: [deploy/README.md](deploy/README.md)
+
+The game server needs a long-lived process (WebSockets, timers, live games in memory), so it
+cannot run on serverless functions; the static web app can.
 
 ## Tech stack
 

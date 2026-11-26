@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "pretypecheck": "pnpm --filter @minefall/shared build && prisma generate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start:migrate": "prisma migrate deploy && node dist/main.js"
   },
   "dependencies": {
     "@minefall/shared": "workspace:*",
@@ -30,6 +31,7 @@
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
     "pg": "^8.23.1",
+    "prisma": "7.10.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.4"
@@ -41,7 +43,6 @@
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^5.1.2",
-    "prisma": "7.10.1",
     "socket.io-client": "^4.8.4",
     "supertest": "^7.3.2",
     "typescript": "~6.0.3",
