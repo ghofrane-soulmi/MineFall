@@ -3,7 +3,13 @@
  * in which room; it knows nothing about sockets, timers or game rules.
  */
 import { Injectable } from '@nestjs/common';
-import type { BotLevel, GuestIdentity, PlayerId, ProtocolErrorCode } from '@minefall/shared';
+import {
+  MAX_SPECTATORS,
+  type BotLevel,
+  type GuestIdentity,
+  type PlayerId,
+  type ProtocolErrorCode,
+} from '@minefall/shared';
 import { MAX_ROOM_MEMBERS, type Room, type RoomMember } from './room';
 import { generateRoomCode } from './room-code';
 
@@ -17,6 +23,7 @@ export const BOT_IDS: Readonly<Record<BotLevel, PlayerId>> = {
 export class RoomsService {
   private readonly rooms = new Map<string, Room>();
   private readonly roomCodeByPlayer = new Map<PlayerId, string>();
+  private readonly roomCodeBySpectator = new Map<PlayerId, string>();
 
   /** Room code generator; replaceable in tests to force collisions. */
   generateCode: () => string = () => generateRoomCode();
@@ -36,6 +43,7 @@ export class RoomsService {
       moveTimes: [],
       lastActivityAt: now,
       graceEndsAt: new Map(),
+      spectators: new Map(),
     };
     this.rooms.set(code, room);
     this.roomCodeByPlayer.set(host.id, code);
@@ -92,8 +100,29 @@ export class RoomsService {
     if (room.hostId === playerId) room.hostId = nextHost.id;
   }
 
+  findBySpectator(playerId: PlayerId): Room | undefined {
+    const code = this.roomCodeBySpectator.get(playerId);
+    return code === undefined ? undefined : this.rooms.get(code);
+  }
+
+  /** Lets someone watch the room. Players of any room cannot also be spectators. */
+  addSpectator(room: Room, viewer: GuestIdentity): ProtocolErrorCode | null {
+    if (this.roomCodeByPlayer.has(viewer.id)) return 'ALREADY_IN_ROOM';
+    if (room.spectators.has(viewer.id)) return null;
+    if (room.spectators.size >= MAX_SPECTATORS) return 'ROOM_FULL';
+    room.spectators.set(viewer.id, viewer.nickname);
+    this.roomCodeBySpectator.set(viewer.id, room.code);
+    return null;
+  }
+
+  removeSpectator(room: Room, playerId: PlayerId): void {
+    room.spectators.delete(playerId);
+    this.roomCodeBySpectator.delete(playerId);
+  }
+
   delete(room: Room): void {
     for (const member of room.members) this.roomCodeByPlayer.delete(member.id);
+    for (const id of room.spectators.keys()) this.roomCodeBySpectator.delete(id);
     this.rooms.delete(room.code);
   }
 }

@@ -193,6 +193,23 @@ describe('game store: actions', () => {
     expect(socket.sent.map((m) => m.event)).toContain(ClientEvents.QueueLeave);
   });
 
+  it('a spectator room:state marks us as a spectator; leaving resets it', async () => {
+    const { store } = setup();
+    socket.serverEmit(ServerEvents.RoomState, { ...roomState(), role: 'spectator' });
+    expect(store.isSpectator).toBe(true);
+    await store.leaveRoom();
+    expect(store.isSpectator).toBe(false);
+  });
+
+  it('watchRoom asks to watch the room', async () => {
+    const { store } = setup();
+    await store.watchRoom('K7QX2M');
+    expect(socket.sent).toContainEqual({
+      event: ClientEvents.RoomWatch,
+      payload: { code: 'K7QX2M' },
+    });
+  });
+
   it('a refused action shows a readable error', async () => {
     const { store } = setup();
     socket.acks.set(ClientEvents.MoveDrop, { ok: false, error: 'COLUMN_BLOCKED' });

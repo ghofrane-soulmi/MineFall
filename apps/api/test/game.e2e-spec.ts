@@ -195,6 +195,42 @@ describe('Minefall API (integration)', () => {
     });
   });
 
+  describe('spectators', () => {
+    it('a third person watches a full game live and never receives a hidden mine', async () => {
+      const { code, first, second } = await startedRoom(server);
+      const viewer = await joinAsGuest(server, 'Viewer');
+
+      // The room is full for players...
+      expect(await viewer.socket.emitWithAck(ClientEvents.RoomJoin, { code })).toEqual({
+        ok: false,
+        error: 'ROOM_FULL',
+      });
+      // ...but open to spectators.
+      expect(await viewer.socket.emitWithAck(ClientEvents.RoomWatch, { code })).toEqual({
+        ok: true,
+      });
+      const state = await viewer.rec.waitFor(ServerEvents.RoomState);
+      expect(state.role).toBe('spectator');
+
+      await placeMines(first, second);
+      expect(await play(first, 3, 1)).toEqual({ ok: true }); // explosion on (3,5)
+      const move = await viewer.rec.waitFor(ServerEvents.MoveResult);
+      expect(move.outcome).toBe('exploded');
+
+      // Spectators are read-only.
+      expect(
+        await viewer.socket.emitWithAck(ClientEvents.ChatSend, { type: 'preset', value: 'gg' }),
+      ).toEqual({ ok: false, error: 'NOT_IN_ROOM' });
+
+      const secret = [...FIRST_MINES, { col: 6, row: 1 }];
+      const leaked = viewer.rec.events
+        .flatMap((e) => cellsIn(e.payload))
+        .filter((c) => secret.some((s) => s.col === c.col && s.row === c.row));
+      expect(leaked).toEqual([]);
+      close(first, second, viewer);
+    });
+  });
+
   describe('quick match', () => {
     it('pairs two waiting players and starts their game', async () => {
       const first = await joinAsGuest(server, 'Quick1');

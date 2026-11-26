@@ -99,6 +99,9 @@ windows, or one normal + one private window, to be two players).
 - Quick match (F14): `MatchmakingService` keeps a FIFO queue (`queue:join` / `queue:leave`);
   the second player triggers `GameService.createMatchedRoom` and both get `queue:matched
 { code }`. A player whose last socket closes is removed from the queue.
+- Spectators (F18): `room.spectators` (not members, so every player action returns
+  `NOT_IN_ROOM`: read-only chat for free). `room:watch { code }`; `room:state.role`.
+  Full resyncs use `sendRoomStateToAll` (players AND spectators, each via `toPlayerView`).
 - `.vue` files are type-checked by `vue-tsc` but not linted (no eslint-plugin-vue yet).
 - In `apps/api`, keep NestJS constructor dependencies as VALUE imports (not `import type`):
   Nest reads them at runtime. ESLint is configured accordingly.

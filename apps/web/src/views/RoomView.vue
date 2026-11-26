@@ -36,6 +36,11 @@ watch(
   { immediate: true },
 );
 
+async function watchAsSpectator(): Promise<void> {
+  const ack = await store.watchRoom(props.code);
+  joinError.value = ack.ok ? null : ack.error;
+}
+
 async function leaveOtherRoomAndJoin(): Promise<void> {
   await store.leaveRoom();
   await join();
@@ -66,6 +71,15 @@ async function leave(): Promise<void> {
     >
       <p class="font-semibold" data-testid="join-error">{{ errorMessage(joinError) }}</p>
       <div class="flex justify-center gap-2">
+        <button
+          v-if="joinError === 'ROOM_FULL'"
+          type="button"
+          class="rounded-xl bg-mine px-4 py-2 font-bold text-night"
+          data-testid="watch-room"
+          @click="watchAsSpectator"
+        >
+          👁 Watch as a spectator
+        </button>
         <button
           v-if="joinError === 'ALREADY_IN_ROOM'"
           type="button"

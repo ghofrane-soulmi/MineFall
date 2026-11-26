@@ -101,6 +101,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     return this.safely(() => this.game.joinRoom(socket.data.player, payload.code));
   }
 
+  @SubscribeMessage(ClientEvents.RoomWatch)
+  watchRoom(@ConnectedSocket() socket: GameSocket, @MessageBody() body: unknown): Ack {
+    const payload = parseRoomJoin(body);
+    if (!payload) return INVALID_PAYLOAD;
+    return this.safely(() => this.game.watchRoom(socket.data.player, payload.code));
+  }
+
   @SubscribeMessage(ClientEvents.RoomReady)
   setReady(@ConnectedSocket() socket: GameSocket, @MessageBody() body: unknown): Ack {
     const payload = parseRoomReady(body);

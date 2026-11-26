@@ -120,12 +120,18 @@ export interface RoomSnapshot {
   readonly startingRoll: StartingRoll | null;
   /** Disconnected players and when their grace period ends (epoch ms). */
   readonly disconnected: readonly PlayerConnectionPayload[];
+  /** How many people are watching (spectators are anonymous to the players). */
+  readonly spectatorCount: number;
 }
 
 /** Sent to ONE player on join / reconnect: the room plus that player's own view of the game. */
+/** A player plays; a spectator only watches (and never sees any unexploded mine). */
+export type RoomRole = 'player' | 'spectator';
+
 export interface RoomStatePayload {
   readonly room: RoomSnapshot;
   readonly game: PlayerView | null;
+  readonly role: RoomRole;
   /** Server clock (epoch ms) when sent: lets clients correct their own clock for countdowns. */
   readonly serverTime: number;
 }
@@ -133,6 +139,7 @@ export interface RoomStatePayload {
 export interface RoomPlayersPayload {
   readonly hostId: PlayerId;
   readonly players: readonly RoomPlayerInfo[];
+  readonly spectatorCount: number;
 }
 
 export interface PhaseChangedPayload {

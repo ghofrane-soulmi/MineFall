@@ -34,6 +34,8 @@ export interface ClientToServerEvents {
     ack: AckCallback<{ code: string }>,
   ) => void;
   [ClientEvents.RoomJoin]: (payload: RoomJoinPayload, ack: AckCallback) => void;
+  /** Watch a room as a spectator (same payload as joining). */
+  [ClientEvents.RoomWatch]: (payload: RoomJoinPayload, ack: AckCallback) => void;
   [ClientEvents.RoomReady]: (payload: RoomReadyPayload, ack: AckCallback) => void;
   [ClientEvents.RoomLeave]: (payload: EmptyPayload, ack: AckCallback) => void;
   [ClientEvents.MinesPlace]: (payload: MinesPlacePayload, ack: AckCallback) => void;

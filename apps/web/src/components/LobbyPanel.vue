@@ -58,8 +58,12 @@ async function copyLink(): Promise<void> {
         </div>
       </div>
 
+      <p v-if="store.isSpectator" class="text-center text-sm text-muted">
+        👁 You are watching. The game starts when both players are ready.
+      </p>
       <div class="flex gap-2">
         <button
+          v-if="!store.isSpectator"
           type="button"
           class="flex-1 rounded-xl py-3 font-bold transition disabled:opacity-40"
           :class="
@@ -79,7 +83,7 @@ async function copyLink(): Promise<void> {
           class="rounded-xl bg-surface-2 px-4 text-sm font-semibold hover:bg-line"
           @click="emit('leave')"
         >
-          Leave
+          {{ store.isSpectator ? 'Stop watching' : 'Leave' }}
         </button>
       </div>
     </section>

@@ -16,6 +16,7 @@ import {
   type MoveResultPayload,
   type PlayerView,
   type RoomPlayerInfo,
+  type RoomRole,
   type RoomSnapshot,
   type StartingRoll,
 } from '@minefall/shared';
@@ -71,6 +72,8 @@ export const useGameStore = defineStore('game', () => {
   const error = ref<string | null>(null);
   /** Quick match: searching for an opponent, and the room we were matched into. */
   const queue = ref<'idle' | 'searching'>('idle');
+  /** 'spectator' = watching someone else's game (read-only, no mines ever). */
+  const role = ref<RoomRole>('player');
   const matchedCode = ref<string | null>(null);
 
   // ---------------------------------------------------------------------------
@@ -88,6 +91,7 @@ export const useGameStore = defineStore('game', () => {
   const isMyTurn = computed(
     () => phase.value === 'playing' && game.value?.currentPlayerId === myId.value,
   );
+  const isSpectator = computed(() => room.value !== null && role.value === 'spectator');
   const myMinesConfirmed = computed(
     () => game.value?.minesConfirmed.find((m) => m.playerId === myId.value)?.confirmed ?? false,
   );
@@ -123,6 +127,7 @@ export const useGameStore = defineStore('game', () => {
     s.on(ServerEvents.RoomState, (payload) => {
       room.value = payload.room;
       game.value = payload.game;
+      role.value = payload.role;
       clockOffset.value = payload.serverTime - Date.now();
       if (payload.game?.phase === 'finished' && payload.game.result) {
         summary.value ??= {
@@ -224,6 +229,11 @@ export const useGameStore = defineStore('game', () => {
     return request((s) => s.emitWithAck(ClientEvents.RoomJoin, { code }), { silent: true });
   }
 
+  /** Watch a full room as a spectator. */
+  async function watchRoom(code: string): Promise<Ack> {
+    return request((s) => s.emitWithAck(ClientEvents.RoomWatch, { code }), { silent: true });
+  }
+
   async function setReady(ready: boolean): Promise<Ack> {
     return request((s) => s.emitWithAck(ClientEvents.RoomReady, { ready }));
   }
@@ -297,6 +307,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function resetRoom(): void {
+    role.value = 'player';
     room.value = null;
     game.value = null;
     lastMove.value = null;
@@ -320,6 +331,7 @@ export const useGameStore = defineStore('game', () => {
     error,
     queue,
     matchedCode,
+    role,
     // derived
     myId,
     phase,
@@ -328,12 +340,14 @@ export const useGameStore = defineStore('game', () => {
     opponent,
     myColor,
     isMyTurn,
+    isSpectator,
     myMinesConfirmed,
     // actions
     connect,
     disconnect,
     createRoom,
     joinRoom,
+    watchRoom,
     setReady,
     placeMines,
     dropToken,

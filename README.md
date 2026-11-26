@@ -24,6 +24,8 @@ Who starts is decided by a dice roll (two dice each, highest total plays red).
 ## Features
 
 - Guest play in seconds: nickname only, private rooms with a 6-character code, link and QR code
+- **Spectator mode:** open the link of a full room to watch the game live (read-only chat). Spectators
+  receive no mines at all until the game is over
 - **Quick match:** "Play now" pairs you with the next waiting player (Minebot is offered after
   30 s if nobody comes)
 - **Play solo against Minebot** (easy or normal): it wins when it can, blocks your threats, avoids

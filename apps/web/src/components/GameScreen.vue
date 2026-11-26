@@ -10,6 +10,7 @@ import {
   type Cell,
   type ChatMessageType,
   type PlayerId,
+  type RoomPlayerInfo,
 } from '@minefall/shared';
 import { computed, ref, watch } from 'vue';
 import { useGameStore } from '../stores/game';
@@ -32,7 +33,19 @@ const game = computed(() => store.game);
 const phase = computed(() => store.phase);
 const opponentName = computed(() => store.opponent?.nickname ?? 'Your opponent');
 
+/** Players see themselves first; spectators see both players in seat order. */
+const shownPlayers = computed<RoomPlayerInfo[]>(() => {
+  const list = store.isSpectator ? store.players : [store.me, store.opponent];
+  return list.filter((p): p is RoomPlayerInfo => p !== null && p !== undefined);
+});
+const spectatorCount = computed(() => store.room?.spectatorCount ?? 0);
+
+function minesHidden(playerId: PlayerId): boolean {
+  return game.value?.minesConfirmed.find((m) => m.playerId === playerId)?.confirmed ?? false;
+}
+
 const mode = computed<'placement' | 'play' | 'view'>(() => {
+  if (store.isSpectator) return 'view';
   if (phase.value === 'placement' && !store.myMinesConfirmed) return 'placement';
   if (phase.value === 'playing' && store.isMyTurn) return 'play';
   return 'view';
@@ -78,6 +91,14 @@ watch(phase, (next) => {
 
 // --- Status line + screen reader announcements ----------------------------------------
 const status = computed(() => {
+  if (store.isSpectator) {
+    if (phase.value === 'placement') return 'Players are hiding their mines…';
+    if (phase.value === 'playing') {
+      const current = game.value?.currentPlayerId;
+      return current ? `${nameOf(current)}'s turn` : 'Starting…';
+    }
+    return 'Game over';
+  }
   if (phase.value === 'placement') {
     if (!store.myMinesConfirmed) {
       return `Hide your ${MINES_PER_PLAYER} mines (${pendingMines.value.length}/${MINES_PER_PLAYER}). Not on the top row.`;
@@ -104,9 +125,11 @@ const announcement = computed(() => {
   return `${what} ${status.value}`;
 });
 
-const timerLabel = computed(() =>
-  phase.value === 'placement' ? 'Mine placement' : store.isMyTurn ? 'Your turn' : 'Their turn',
-);
+const timerLabel = computed(() => {
+  if (phase.value === 'placement') return 'Mine placement';
+  if (store.isSpectator) return 'Turn';
+  return store.isMyTurn ? 'Your turn' : 'Their turn';
+});
 const timerTotal = computed(() =>
   phase.value === 'placement' ? PLACEMENT_DURATION_MS : TURN_DURATION_MS,
 );
@@ -116,7 +139,7 @@ function sendChat(type: ChatMessageType, value: string): void {
 }
 
 function leave(): void {
-  const running = phase.value === 'placement' || phase.value === 'playing';
+  const running = !store.isSpectator && (phase.value === 'placement' || phase.value === 'playing');
   if (running && !window.confirm('Leaving now counts as a forfeit. Leave the game?')) return;
   emit('leave');
 }
@@ -128,28 +151,16 @@ function leave(): void {
       <!-- Players + timer -->
       <div class="grid grid-cols-2 gap-2">
         <PlayerCard
-          v-if="store.me"
-          :player="store.me"
-          is-me
-          :is-turn="phase === 'playing' && game.currentPlayerId === store.myId"
-          :badge="
-            phase === 'placement'
-              ? store.myMinesConfirmed
-                ? 'Mines hidden ✓'
-                : 'Hiding mines…'
-              : null
-          "
-        />
-        <PlayerCard
-          v-if="store.opponent"
-          :player="store.opponent"
-          :is-me="false"
-          :is-turn="phase === 'playing' && game.currentPlayerId === store.opponent.id"
-          :grace-ends-at="graceFor(store.opponent.id)"
+          v-for="player in shownPlayers"
+          :key="player.id"
+          :player="player"
+          :is-me="player.id === store.myId"
+          :is-turn="phase === 'playing' && game.currentPlayerId === player.id"
+          :grace-ends-at="player.id === store.myId ? null : graceFor(player.id)"
           :clock-offset="store.clockOffset"
           :badge="
             phase === 'placement'
-              ? game.minesConfirmed.find((m) => m.playerId === store.opponent?.id)?.confirmed
+              ? minesHidden(player.id)
                 ? 'Mines hidden ✓'
                 : 'Hiding mines…'
               : null
@@ -166,6 +177,16 @@ function leave(): void {
       />
 
       <p class="text-center font-semibold" data-testid="status">{{ status }}</p>
+      <p
+        v-if="store.isSpectator || spectatorCount > 0"
+        class="text-center text-xs text-muted"
+        data-testid="watchers"
+      >
+        <template v-if="store.isSpectator"
+          >👁 You are watching · no mines are shown until the end</template
+        >
+        <template v-else>👁 {{ spectatorCount }} watching</template>
+      </p>
       <p class="sr-only" aria-live="polite">{{ announcement }}</p>
 
       <div class="relative">
@@ -188,6 +209,7 @@ function leave(): void {
         <EndOverlay
           v-if="phase === 'finished' && showEnd && store.summary"
           :summary="store.summary"
+          :spectator="store.isSpectator"
           :players="store.players"
           :my-id="store.myId"
           @rematch="store.requestRematch()"
@@ -228,9 +250,10 @@ function leave(): void {
         <button
           type="button"
           class="rounded-xl px-4 py-2.5 text-sm text-muted underline-offset-4 hover:underline"
+          data-testid="leave-game"
           @click="leave"
         >
-          Leave game
+          {{ store.isSpectator ? 'Stop watching' : 'Leave game' }}
         </button>
       </div>
     </div>
@@ -241,6 +264,7 @@ function leave(): void {
         :messages="store.chat"
         :players="store.players"
         :my-id="store.myId"
+        :read-only="store.isSpectator"
         @send="sendChat"
       />
     </aside>
@@ -258,6 +282,7 @@ function leave(): void {
           :messages="store.chat"
           :players="store.players"
           :my-id="store.myId"
+          :read-only="store.isSpectator"
           @send="sendChat"
         />
       </div>

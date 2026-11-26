@@ -48,5 +48,8 @@ export const CHAT_MAX_LENGTH = 120;
 /** One chat message per second per player. */
 export const CHAT_MIN_INTERVAL_MS = 1_000;
 
+/** Spectator mode (F18): people who may watch one room at the same time. */
+export const MAX_SPECTATORS = 20;
+
 /** Quick match (F14): after this long without an opponent, the client offers Minebot. */
 export const QUICK_MATCH_BOT_OFFER_MS = 30_000;

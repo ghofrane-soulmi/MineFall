@@ -9,15 +9,21 @@ const props = defineProps<{
   summary: EndSummary;
   players: readonly RoomPlayerInfo[];
   myId: string | null;
+  spectator?: boolean;
 }>();
 const emit = defineEmits<{ rematch: []; home: []; viewBoard: [] }>();
 
 const me = computed(() => props.players.find((p) => p.id === props.myId));
 const opponent = computed(() => props.players.find((p) => p.id !== props.myId));
 
+function nameOf(playerId: string): string {
+  return props.players.find((p) => p.id === playerId)?.nickname ?? '?';
+}
+
 const title = computed(() => {
   const { result } = props.summary;
   if (result.type === 'draw') return 'Draw!';
+  if (props.spectator) return `${nameOf(result.winnerId)} wins!`;
   return result.winnerId === props.myId ? 'You win!' : 'You lose';
 });
 
@@ -25,6 +31,7 @@ const subtitle = computed(() => {
   const { result } = props.summary;
   if (result.type === 'draw') return 'No more moves left.';
   if (result.type === 'forfeit') {
+    if (props.spectator) return 'The other player left the game.';
     return result.winnerId === props.myId
       ? `${opponent.value?.nickname ?? 'Your opponent'} left the game.`
       : 'You left or stayed disconnected too long.';
@@ -69,6 +76,7 @@ const exploded = computed(() => new Set(props.summary.explodedMines.map((m) => m
 
       <div class="space-y-2">
         <button
+          v-if="!spectator"
           type="button"
           class="w-full rounded-xl bg-mine py-2.5 font-bold text-night transition hover:brightness-110 disabled:opacity-50"
           :disabled="me?.wantsRematch || players.length < 2"

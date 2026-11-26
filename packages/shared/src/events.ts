@@ -7,6 +7,7 @@ export const SOCKET_NAMESPACE = '/game';
 export const ClientEvents = {
   RoomCreate: 'room:create',
   RoomJoin: 'room:join',
+  RoomWatch: 'room:watch',
   RoomReady: 'room:ready',
   RoomLeave: 'room:leave',
   MinesPlace: 'mines:place',

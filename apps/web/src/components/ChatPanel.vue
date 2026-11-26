@@ -14,6 +14,8 @@ const props = defineProps<{
   messages: readonly ChatMessagePayload[];
   players: readonly RoomPlayerInfo[];
   myId: string | null;
+  /** Spectators can read but not write. */
+  readOnly?: boolean;
 }>();
 const emit = defineEmits<{ send: [type: ChatMessageType, value: string] }>();
 
@@ -70,7 +72,10 @@ watch(
       </li>
     </ol>
 
-    <div class="space-y-2 border-t border-line p-3">
+    <p v-if="readOnly" class="border-t border-line p-3 text-center text-xs text-muted">
+      Spectators can read the chat but not write.
+    </p>
+    <div v-else class="space-y-2 border-t border-line p-3">
       <div class="flex flex-wrap gap-1.5">
         <button
           v-for="preset in CHAT_PRESETS"

@@ -43,4 +43,12 @@ describe('ChatPanel', () => {
     expect(list.text()).toContain('<b>bold</b>');
     expect(list.text()).toContain('You: Nice move!');
   });
+
+  it('read-only mode (spectators) hides every way to send', () => {
+    const wrapper = mount(ChatPanel, {
+      props: { messages: [], players, myId: 'spectator', readOnly: true },
+    });
+    expect(wrapper.find('input').exists()).toBe(false);
+    expect(wrapper.text()).toContain('Spectators can read the chat but not write.');
+  });
 });

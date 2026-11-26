@@ -42,6 +42,7 @@ import {
 import { APP_CONFIG, CLOCK, RNG, type AppConfig, type Clock } from '../config/app-config';
 import { GameRecorder, toFinishedGameRecord } from '../persistence/game-recorder';
 import {
+  MAX_ROOM_MEMBERS,
   findBot,
   findMember,
   isGameRunning,
@@ -97,6 +98,12 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
 
   /** A socket of `player` connected: re-attach to their room and resend the full state. */
   playerConnected(player: GuestIdentity): void {
+    const watched = this.rooms.findBySpectator(player.id);
+    if (watched) {
+      this.notifier.joinRoom(player.id, watched.code);
+      this.sendRoomState(watched, player.id);
+      return;
+    }
     const room = this.rooms.findByPlayer(player.id);
     const member = room && findMember(room, player.id);
     if (!room || !member) return;
@@ -117,6 +124,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
 
   /** The LAST socket of a player closed. During a game they get a grace period, then forfeit. */
   playerDisconnected(playerId: PlayerId): void {
+    this.stopWatching(playerId); // spectators have no grace period: they simply leave
     const room = this.rooms.findByPlayer(playerId);
     const member = room && findMember(room, playerId);
     if (!room || !member) return;
@@ -142,6 +150,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
   /** Creates a room. With `bot`, Minebot joins as the second player and the game starts. */
   createRoom(player: GuestIdentity, bot?: BotLevel): Ack<{ code: string }> {
     if (this.rooms.findByPlayer(player.id)) return fail('ALREADY_IN_ROOM');
+    this.stopWatching(player.id);
     const room = this.rooms.create(player, this.now());
     this.notifier.joinRoom(player.id, room.code);
     if (bot) {
@@ -156,6 +165,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
 
   /** Quick match: a room for two matched players; the game starts immediately. */
   createMatchedRoom(first: GuestIdentity, second: GuestIdentity): string {
+    for (const player of [first, second]) this.stopWatching(player.id);
     const room = this.rooms.create(first, this.now());
     const error = this.rooms.addMember(room, second, this.now());
     if (error) throw new Error(`createMatchedRoom: ${error}`); // matchmaking checked this
@@ -165,6 +175,15 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
   }
 
   joinRoom(player: GuestIdentity, code: string): Ack {
+    const watched = this.rooms.findBySpectator(player.id);
+    if (watched) {
+      // Already watching this full room (e.g. after a refresh): just resync as a spectator.
+      if (watched.code === code && watched.members.length >= MAX_ROOM_MEMBERS) {
+        this.sendRoomState(watched, player.id);
+        return OK;
+      }
+      this.stopWatching(player.id); // a seat is free, or another room: stop watching first
+    }
     const current = this.rooms.findByPlayer(player.id);
     if (current) {
       if (current.code !== code) return fail('ALREADY_IN_ROOM');
@@ -179,6 +198,27 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     this.notifier.joinRoom(player.id, room.code);
     this.broadcastPlayers(room);
     this.sendRoomState(room, player.id);
+    return OK;
+  }
+
+  /** Watch a room without playing (SPEC F18). Spectators never receive unexploded mines. */
+  watchRoom(viewer: GuestIdentity, code: string): Ack {
+    const playing = this.rooms.findByPlayer(viewer.id);
+    if (playing) {
+      if (playing.code !== code) return fail('ALREADY_IN_ROOM');
+      this.sendRoomState(playing, viewer.id); // a player opening their own room: resync
+      return OK;
+    }
+    const room = this.rooms.get(code);
+    if (!room) return fail('ROOM_NOT_FOUND');
+    const watched = this.rooms.findBySpectator(viewer.id);
+    if (watched && watched.code !== code) this.stopWatching(viewer.id);
+
+    const error = this.rooms.addSpectator(room, viewer);
+    if (error) return fail(error);
+    this.notifier.joinRoom(viewer.id, room.code);
+    this.broadcastPlayers(room); // spectator count changed
+    this.sendRoomState(room, viewer.id);
     return OK;
   }
 
@@ -199,6 +239,10 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
 
   /** Leaving during a game is a forfeit (SPEC F12). The other player goes back to the lobby. */
   leaveRoom(playerId: PlayerId): Ack {
+    if (this.rooms.findBySpectator(playerId)) {
+      this.stopWatching(playerId);
+      return OK;
+    }
     const found = this.requireMember(playerId);
     if (!found.ok) return found;
     const { room } = found;
@@ -211,8 +255,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
 
     if (room.members.every((m) => m.bot !== null)) {
       // Only Minebot is left (or nobody): the room has no reason to exist.
-      this.scheduler.cancelByPrefix(`${room.code}:`);
-      this.rooms.delete(room);
+      this.destroyRoom(room);
       return OK;
     }
     this.resetToLobby(room);
@@ -287,12 +330,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     const limit = this.now() - this.config.timings.roomIdleMs;
     const idle = this.rooms.all().filter((room) => room.lastActivityAt < limit);
     for (const room of idle) {
-      for (const member of room.members) {
-        this.notifier.leaveRoom(member.id, room.code);
-        this.lastChatAt.delete(member.id);
-      }
-      this.scheduler.cancelByPrefix(`${room.code}:`);
-      this.rooms.delete(room);
+      this.destroyRoom(room);
     }
     return idle.length;
   }
@@ -333,8 +371,26 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
       phase: 'placement',
       endsAt: room.phaseEndsAt,
     });
-    for (const member of room.members) this.sendRoomState(room, member.id);
+    this.sendRoomStateToAll(room);
     this.scheduleBot(room);
+  }
+
+  private stopWatching(playerId: PlayerId): void {
+    const room = this.rooms.findBySpectator(playerId);
+    if (!room) return;
+    this.rooms.removeSpectator(room, playerId);
+    this.notifier.leaveRoom(playerId, room.code);
+    this.broadcastPlayers(room);
+  }
+
+  /** Removes a room for good: timers, socket channels of everyone in it, registry entry. */
+  private destroyRoom(room: Room): void {
+    this.scheduler.cancelByPrefix(`${room.code}:`);
+    for (const id of [...room.members.map((m) => m.id), ...room.spectators.keys()]) {
+      this.notifier.leaveRoom(id, room.code);
+      this.lastChatAt.delete(id);
+    }
+    this.rooms.delete(room);
   }
 
   // -------------------------------------------------------------------------
@@ -430,7 +486,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
           endsAt: room.phaseEndsAt,
         });
         // Each player needs who moves first + the turnId: resend their own view.
-        for (const member of room.members) this.sendRoomState(room, member.id);
+        this.sendRoomStateToAll(room);
         return;
       case 'moveApplied': {
         room.moveTimes.push(this.now());
@@ -524,8 +580,16 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     this.notifier.toPlayer(playerId, ServerEvents.RoomState, {
       room: toRoomSnapshot(room),
       game: room.game ? toPlayerView(room.game, playerId) : null,
+      role: findMember(room, playerId) ? 'player' : 'spectator',
       serverTime: this.now(),
     });
+  }
+
+  /** Full resync for everyone in the room: players AND spectators, each with their own view. */
+  private sendRoomStateToAll(room: Room): void {
+    for (const id of [...room.members.map((m) => m.id), ...room.spectators.keys()]) {
+      this.sendRoomState(room, id);
+    }
   }
 
   private broadcastPlayers(room: Room): void {

@@ -40,6 +40,8 @@ export interface Room {
   lastActivityAt: number;
   /** Disconnected players during a game -> when they forfeit (epoch ms). */
   graceEndsAt: Map<PlayerId, number>;
+  /** Spectators (id -> nickname). Not members: they can watch, never act. */
+  spectators: Map<PlayerId, string>;
 }
 
 export function roomPhase(room: Room): RoomPhase {
@@ -72,7 +74,11 @@ export function toRoomPlayers(room: Room): RoomPlayerInfo[] {
 }
 
 export function toRoomPlayersPayload(room: Room): RoomPlayersPayload {
-  return { hostId: room.hostId, players: toRoomPlayers(room) };
+  return {
+    hostId: room.hostId,
+    players: toRoomPlayers(room),
+    spectatorCount: room.spectators.size,
+  };
 }
 
 export function toRoomSnapshot(room: Room): RoomSnapshot {
@@ -87,5 +93,6 @@ export function toRoomSnapshot(room: Room): RoomSnapshot {
       playerId,
       graceEndsAt,
     })),
+    spectatorCount: room.spectators.size,
   };
 }

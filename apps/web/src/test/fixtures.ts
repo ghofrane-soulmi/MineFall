@@ -26,6 +26,7 @@ export function roomSnapshot(overrides: Partial<RoomSnapshot> = {}): RoomSnapsho
     phaseEndsAt: 1_000_000 + 20_000,
     startingRoll: null,
     disconnected: [],
+    spectatorCount: 0,
     ...overrides,
   };
 }
@@ -62,5 +63,5 @@ export function roomState(
   game: PlayerView | null = playerView(),
   room: RoomSnapshot = roomSnapshot(),
 ): RoomStatePayload {
-  return { room, game, serverTime: Date.now() };
+  return { room, game, role: 'player', serverTime: Date.now() };
 }
