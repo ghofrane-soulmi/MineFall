@@ -1,0 +1,9 @@
+{
+  "//": "Node-side TypeScript: tool configs and the Playwright tests.",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["vite.config.ts", "playwright.config.ts", "e2e/**/*.ts"]
+}

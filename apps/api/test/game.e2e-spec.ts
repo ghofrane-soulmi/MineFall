@@ -195,6 +195,22 @@ describe('Minefall API (integration)', () => {
     });
   });
 
+  describe('chat', () => {
+    it('delivers presets, emojis and sanitised text; rejects spam and bad payloads', async () => {
+      const { host, guest } = await startedRoom(server);
+      const send = (value: string, type: 'preset' | 'emoji' | 'text') =>
+        host.socket.emitWithAck(ClientEvents.ChatSend, { type, value });
+
+      expect(await send('<i>hi</i>', 'text')).toEqual({ ok: true });
+      const message = await guest.rec.waitFor(ServerEvents.ChatMessage);
+      expect(message).toMatchObject({ playerId: host.id, type: 'text', value: 'ihi/i' });
+
+      expect(await send('gg', 'preset')).toEqual({ ok: false, error: 'RATE_LIMITED' });
+      expect(await send('🐍', 'emoji')).toEqual({ ok: false, error: 'INVALID_PAYLOAD' });
+      close(host, guest);
+    });
+  });
+
   describe('reconnection and leaving', () => {
     it('a page refresh restores the exact game state', async () => {
       const { first, second } = await startedRoom(server);

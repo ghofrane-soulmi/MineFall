@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   normalizeNickname,
   normalizeRoomCode,
+  parseChatSend,
   parseMinesPlace,
   parseMoveDrop,
   parseRoomJoin,
   parseRoomReady,
+  sanitizeChatText,
 } from '../src/protocol/validation';
 
 describe('normalizeNickname', () => {
@@ -73,5 +75,40 @@ describe('payload parsers', () => {
     expect(parseMoveDrop({ column: '3', turnId: 7 })).toBeNull();
     expect(parseMoveDrop({ column: 3 })).toBeNull();
     expect(parseMoveDrop(undefined)).toBeNull();
+  });
+});
+
+describe('chat', () => {
+  it('sanitizeChatText strips HTML brackets, control and invisible characters', () => {
+    expect(sanitizeChatText('  hello   world ')).toBe('hello world');
+    expect(sanitizeChatText('<script>alert(1)</script>')).toBe('scriptalert(1)/script');
+    expect(sanitizeChatText('a\u0000b\u200Bc\u202Ed')).toBe('abcd');
+    expect(sanitizeChatText('👨‍👩‍👧 gg')).toBe('👨‍👩‍👧 gg');
+  });
+
+  it('sanitizeChatText enforces 1-120 characters', () => {
+    expect(sanitizeChatText('x'.repeat(120))).toHaveLength(120);
+    expect(sanitizeChatText('x'.repeat(121))).toBeNull();
+    expect(sanitizeChatText('   ')).toBeNull();
+    expect(sanitizeChatText('<>')).toBeNull();
+    expect(sanitizeChatText('x'.repeat(5000))).toBeNull();
+    expect(sanitizeChatText(42)).toBeNull();
+  });
+
+  it('parseChatSend accepts known presets and emojis, and sanitised text', () => {
+    expect(parseChatSend({ type: 'preset', value: 'gg' })).toEqual({ type: 'preset', value: 'gg' });
+    expect(parseChatSend({ type: 'emoji', value: '💣' })).toEqual({ type: 'emoji', value: '💣' });
+    expect(parseChatSend({ type: 'text', value: ' <b>hi</b> ' })).toEqual({
+      type: 'text',
+      value: 'bhi/b',
+    });
+  });
+
+  it('parseChatSend refuses unknown presets, emojis and types', () => {
+    expect(parseChatSend({ type: 'preset', value: 'insult' })).toBeNull();
+    expect(parseChatSend({ type: 'emoji', value: '🐍' })).toBeNull();
+    expect(parseChatSend({ type: 'html', value: 'x' })).toBeNull();
+    expect(parseChatSend({ type: 'text', value: '' })).toBeNull();
+    expect(parseChatSend('gg')).toBeNull();
   });
 });

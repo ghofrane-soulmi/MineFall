@@ -184,6 +184,18 @@ describe('GameService', () => {
       expect(ctx.scheduler.tasks.get(`${code}:phase`)?.delayMs).toBe(TURN_MS);
     });
 
+    it("resends each player's view when play starts (who moves first, turnId)", () => {
+      const ctx = setup();
+      playing(ctx);
+      for (const player of [ALICE, BOB]) {
+        const state = ctx.notifier.last(player.id, ServerEvents.RoomState);
+        expect(state.game?.phase).toBe('playing');
+        expect(state.game?.currentPlayerId).toBe(ALICE.id);
+        expect(state.game?.turnId).toBe(1);
+        expect(state.game?.viewerId).toBe(player.id);
+      }
+    });
+
     it('places random mines and starts play when the placement timer ends', () => {
       const ctx = setup();
       const code = lobby(ctx);
@@ -224,6 +236,7 @@ describe('GameService', () => {
         timeout: false,
         explodedMine: null,
         blockedColumn: null,
+        blockedColumns: {},
         nextPlayerId: BOB.id,
         turnEndsAt: ctx.clock.time + TURN_MS,
         turnId: 2,
@@ -250,7 +263,16 @@ describe('GameService', () => {
         outcome: 'exploded',
         explodedMine: { col: 3, row: 5, ownerId: BOB.id },
         blockedColumn: 3,
+        blockedColumns: { 3: 1 },
       });
+      drop(ctx, BOB.id, 0);
+      expect(ctx.notifier.last(ALICE.id, ServerEvents.MoveResult).blockedColumns).toEqual({});
+    });
+
+    it('refuses the blocked column for the next move', () => {
+      const ctx = setup();
+      playing(ctx);
+      drop(ctx, ALICE.id, 3);
       expect(drop(ctx, BOB.id, 3)).toEqual({ ok: false, error: 'COLUMN_BLOCKED' });
     });
 
@@ -431,6 +453,51 @@ describe('GameService', () => {
       ctx.service.playerConnected(CAROL);
       ctx.service.playerDisconnected(CAROL.id);
       expect(ctx.notifier.sent).toEqual([]);
+    });
+  });
+
+  describe('chat', () => {
+    it('broadcasts a message to the room with an id and timestamp', () => {
+      const ctx = setup();
+      lobby(ctx);
+      expect(ctx.service.sendChat(ALICE.id, { type: 'preset', value: 'gg' })).toEqual({ ok: true });
+      expect(ctx.notifier.last(BOB.id, ServerEvents.ChatMessage)).toEqual({
+        id: expect.any(String),
+        playerId: ALICE.id,
+        type: 'preset',
+        value: 'gg',
+        sentAt: ctx.clock.time,
+      });
+    });
+
+    it('allows one message per second per player', () => {
+      const ctx = setup();
+      lobby(ctx);
+      ctx.service.sendChat(ALICE.id, { type: 'emoji', value: '🔥' });
+      ctx.clock.advance(999);
+      expect(ctx.service.sendChat(ALICE.id, { type: 'emoji', value: '🔥' })).toEqual({
+        ok: false,
+        error: 'RATE_LIMITED',
+      });
+      expect(ctx.service.sendChat(BOB.id, { type: 'emoji', value: '🔥' })).toEqual({ ok: true });
+      ctx.clock.advance(1);
+      expect(ctx.service.sendChat(ALICE.id, { type: 'text', value: 'ok' })).toEqual({ ok: true });
+    });
+
+    it('refuses chat from a player in no room', () => {
+      const ctx = setup();
+      expect(ctx.service.sendChat(CAROL.id, { type: 'preset', value: 'gg' })).toEqual({
+        ok: false,
+        error: 'NOT_IN_ROOM',
+      });
+    });
+  });
+
+  describe('room state', () => {
+    it('includes the server time so clients can correct their clock', () => {
+      const ctx = setup();
+      ctx.service.createRoom(ALICE);
+      expect(ctx.notifier.last(ALICE.id, ServerEvents.RoomState).serverTime).toBe(ctx.clock.time);
     });
   });
 

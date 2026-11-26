@@ -1,0 +1,38 @@
+{
+  "name": "@minefall/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minefall browser client (Vue 3 + Pinia + Tailwind).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "vue-tsc --noEmit && tsc -p tsconfig.node.json",
+    "test:e2e": "pnpm --filter @minefall/api build && playwright test"
+  },
+  "dependencies": {
+    "@minefall/shared": "workspace:*",
+    "pinia": "^4.1.0",
+    "qrcode": "^1.5.4",
+    "socket.io-client": "^4.8.4",
+    "vue": "^3.5.46",
+    "vue-router": "^5.5.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^26.6.11",
+    "@types/qrcode": "^1.5.6",
+    "@vitejs/plugin-vue": "^6.0.11",
+    "@vue/test-utils": "^2.6.0",
+    "happy-dom": "^21.0.4",
+    "tailwindcss": "^4.3.5",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.2",
+    "vue-tsc": "^3.3.14"
+  }
+}

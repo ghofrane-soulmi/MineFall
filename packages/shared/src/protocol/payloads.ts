@@ -45,6 +45,7 @@ export type ProtocolErrorCode =
   | 'ROOM_FULL'
   | 'NOT_IN_ROOM'
   | 'ALREADY_IN_ROOM'
+  | 'RATE_LIMITED'
   | 'INTERNAL_ERROR';
 
 export type AckErrorCode = ProtocolErrorCode | EngineErrorCode;
@@ -76,6 +77,13 @@ export interface MinesPlacePayload {
 export interface MoveDropPayload {
   readonly column: number;
   readonly turnId: number;
+}
+
+export type ChatMessageType = 'preset' | 'emoji' | 'text';
+/** `value` is a preset id, one of CHAT_EMOJIS, or free text (sanitised, max 120 chars). */
+export interface ChatSendPayload {
+  readonly type: ChatMessageType;
+  readonly value: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +119,8 @@ export interface RoomSnapshot {
 export interface RoomStatePayload {
   readonly room: RoomSnapshot;
   readonly game: PlayerView | null;
+  /** Server clock (epoch ms) when sent: lets clients correct their own clock for countdowns. */
+  readonly serverTime: number;
 }
 
 export interface RoomPlayersPayload {
@@ -136,6 +146,8 @@ export interface MoveResultPayload {
   readonly timeout: boolean;
   readonly explodedMine: ExplodedMine | null;
   readonly blockedColumn: number | null;
+  /** All blocked columns after this move (column -> moves left), so clients never compute it. */
+  readonly blockedColumns: Readonly<Record<number, number>>;
   readonly nextPlayerId: PlayerId | null;
   readonly turnEndsAt: number | null;
   readonly turnId: number;
@@ -154,6 +166,14 @@ export interface PlayerConnectionPayload {
   readonly playerId: PlayerId;
   /** Set while a game is running: the player forfeits if not back by then (epoch ms). */
   readonly graceEndsAt: number | null;
+}
+
+export interface ChatMessagePayload {
+  readonly id: string;
+  readonly playerId: PlayerId;
+  readonly type: ChatMessageType;
+  readonly value: string;
+  readonly sentAt: number;
 }
 
 export interface ErrorPayload {

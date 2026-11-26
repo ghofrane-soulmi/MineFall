@@ -33,3 +33,17 @@ export const NICKNAME_MAX_LENGTH = 16;
 /** Room codes: 6 characters, without look-alikes (0/O, 1/I/L) so they are easy to read aloud. */
 export const ROOM_CODE_LENGTH = 6;
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+/** Quick chat (SPEC F9). Presets are sent by id; the client shows the text. */
+export const CHAT_PRESETS = [
+  { id: 'gg', text: 'GG' },
+  { id: 'nice', text: 'Nice move!' },
+  { id: 'oops', text: 'Oops' },
+  { id: 'good-luck', text: 'Good luck' },
+  { id: 'hurry', text: 'Hurry up!' },
+  { id: 'rematch', text: 'Rematch?' },
+] as const;
+export const CHAT_EMOJIS = ['👍', '😂', '😮', '😢', '🔥', '💣'] as const;
+export const CHAT_MAX_LENGTH = 120;
+/** One chat message per second per player. */
+export const CHAT_MIN_INTERVAL_MS = 1_000;

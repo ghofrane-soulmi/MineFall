@@ -7,6 +7,8 @@ import type { StartingRoll } from '../engine/dice';
 import type { ClientEvents, ServerEvents } from '../events';
 import type {
   Ack,
+  ChatMessagePayload,
+  ChatSendPayload,
   EmptyPayload,
   ErrorPayload,
   GameOverPayload,
@@ -32,6 +34,7 @@ export interface ClientToServerEvents {
   [ClientEvents.MinesPlace]: (payload: MinesPlacePayload, ack: AckCallback) => void;
   [ClientEvents.MoveDrop]: (payload: MoveDropPayload, ack: AckCallback) => void;
   [ClientEvents.GameRematch]: (payload: EmptyPayload, ack: AckCallback) => void;
+  [ClientEvents.ChatSend]: (payload: ChatSendPayload, ack: AckCallback) => void;
 }
 
 export interface ServerToClientEvents {
@@ -42,6 +45,7 @@ export interface ServerToClientEvents {
   [ServerEvents.MinesConfirmed]: (payload: MinesConfirmedPayload) => void;
   [ServerEvents.MoveResult]: (payload: MoveResultPayload) => void;
   [ServerEvents.GameOver]: (payload: GameOverPayload) => void;
+  [ServerEvents.ChatMessage]: (payload: ChatMessagePayload) => void;
   [ServerEvents.PlayerDisconnected]: (payload: PlayerConnectionPayload) => void;
   [ServerEvents.PlayerReconnected]: (payload: PlayerConnectionPayload) => void;
   [ServerEvents.Error]: (payload: ErrorPayload) => void;

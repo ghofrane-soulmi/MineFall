@@ -3,6 +3,9 @@
  * payload is parsed here before reaching the engine. Each parser returns the clean value or null.
  */
 import {
+  CHAT_EMOJIS,
+  CHAT_MAX_LENGTH,
+  CHAT_PRESETS,
   NICKNAME_MAX_LENGTH,
   NICKNAME_MIN_LENGTH,
   ROOM_CODE_ALPHABET,
@@ -10,6 +13,7 @@ import {
 } from '../constants';
 import type { Cell } from '../types/board';
 import type {
+  ChatSendPayload,
   MinesPlacePayload,
   MoveDropPayload,
   RoomJoinPayload,
@@ -77,4 +81,46 @@ export function parseMoveDrop(payload: unknown): MoveDropPayload | null {
   const { column, turnId } = payload;
   if (!isInteger(column) || !isInteger(turnId)) return null;
   return { column, turnId };
+}
+
+/**
+ * Zero-width spaces and text-direction overrides (can disguise or reverse text). The zero-width
+ * joiner (U+200D) is kept on purpose: emoji such as 👨‍👩‍👧 need it.
+ */
+const INVISIBLE_CHARACTERS = /[\u200B\u200C\u200E\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
+
+/** Raw text longer than this is refused before any processing. */
+const MAX_RAW_CHAT_LENGTH = 1_000;
+
+/**
+ * Makes free chat text safe and tidy: removes control characters, invisible characters and
+ * angle brackets (no HTML can survive), collapses whitespace and trims. Returns null if nothing is left or too long.
+ */
+export function sanitizeChatText(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw.length > MAX_RAW_CHAT_LENGTH) return null;
+  const text = raw
+    .replace(/[\p{Cc}<>]/gu, '')
+    .replace(INVISIBLE_CHARACTERS, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const length = [...text].length;
+  return length === 0 || length > CHAT_MAX_LENGTH ? null : text;
+}
+
+export function parseChatSend(payload: unknown): ChatSendPayload | null {
+  if (!isRecord(payload)) return null;
+  const { type, value } = payload;
+  if (type === 'preset') {
+    return CHAT_PRESETS.some((p) => p.id === value) ? { type, value: value as string } : null;
+  }
+  if (type === 'emoji') {
+    return (CHAT_EMOJIS as readonly unknown[]).includes(value)
+      ? { type, value: value as string }
+      : null;
+  }
+  if (type === 'text') {
+    const text = sanitizeChatText(value);
+    return text ? { type, value: text } : null;
+  }
+  return null;
 }

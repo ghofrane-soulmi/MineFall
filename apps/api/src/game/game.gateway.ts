@@ -16,6 +16,7 @@ import {
 import {
   ClientEvents,
   SOCKET_NAMESPACE,
+  parseChatSend,
   parseMinesPlace,
   parseMoveDrop,
   parseRoomJoin,
@@ -120,6 +121,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage(ClientEvents.GameRematch)
   requestRematch(@ConnectedSocket() socket: GameSocket): Ack {
     return this.safely(() => this.game.requestRematch(socket.data.player.id));
+  }
+
+  @SubscribeMessage(ClientEvents.ChatSend)
+  sendChat(@ConnectedSocket() socket: GameSocket, @MessageBody() body: unknown): Ack {
+    const payload = parseChatSend(body);
+    if (!payload) return INVALID_PAYLOAD;
+    return this.safely(() => this.game.sendChat(socket.data.player.id, payload));
   }
 
   /** An unexpected error must still answer the client, never leave its ack hanging. */

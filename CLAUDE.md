@@ -59,12 +59,16 @@ pnpm --filter @minefall/shared test:coverage
 pnpm --filter @minefall/api dev       # API on http://localhost:3000 (watch mode)
 pnpm --filter @minefall/api test      # API unit + integration tests (real sockets)
 pnpm --filter @minefall/api build     # compile to apps/api/dist (builds shared first)
+pnpm --filter @minefall/web dev       # web on http://localhost:5173 (proxies /auth + /socket.io to :3000)
+pnpm --filter @minefall/web test      # web unit tests (store, components, composables)
+pnpm --filter @minefall/web test:e2e  # Playwright: 2 browsers play a full game (ports 3100/5174)
 pnpm lint                             # ESLint across workspaces
 pnpm format                           # Prettier write
 pnpm typecheck                        # tsc --noEmit across workspaces
 ```
 
-Commands for `apps/web` are added when that milestone starts.
+Run the API and the web dev server in two terminals to play locally (open two browser
+windows, or one normal + one private window, to be two players).
 
 ### Build notes
 
@@ -74,6 +78,11 @@ Commands for `apps/web` are added when that milestone starts.
 - NestJS 12 ships as ES modules, so API tests use **Vitest** (Jest cannot load ESM on
   Node 22). Vite 8 compiles with Oxc, which emits the decorator metadata Nest DI needs.
   (decided 2026-11-26)
+- Web: `stores/game.ts` is the only module that talks to the socket. `lib/server-events.ts`
+  folds server events into the client copy of the game: it copies server decisions
+  (landing row, outcome, blocked columns, next player) and never computes a rule.
+  Any `room:state` replaces the client copy wholesale (resync).
+- `.vue` files are type-checked by `vue-tsc` but not linted (no eslint-plugin-vue yet).
 - In `apps/api`, keep NestJS constructor dependencies as VALUE imports (not `import type`):
   Nest reads them at runtime. ESLint is configured accordingly.
 

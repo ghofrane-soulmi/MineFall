@@ -3,8 +3,10 @@
  * It is the only caller of the pure engine. For every engine result it updates the room,
  * (re)starts server timers and emits events. Game state leaves only via `toPlayerView`.
  */
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import {
+  CHAT_MIN_INTERVAL_MS,
   ServerEvents,
   allRemainingMines,
   applyMove,
@@ -18,6 +20,7 @@ import {
   type Ack,
   type AckErrorCode,
   type AckFailure,
+  type ChatSendPayload,
   type EngineEvent,
   type EngineResult,
   type GameResult,
@@ -50,6 +53,8 @@ const graceTimerKey = (code: string, playerId: PlayerId): string => `${code}:gra
 @Injectable()
 export class GameService implements OnModuleInit, OnModuleDestroy {
   private cleanupInterval: NodeJS.Timeout | null = null;
+  /** Last chat message time per player, for the 1 message / second limit. */
+  private readonly lastChatAt = new Map<PlayerId, number>();
 
   constructor(
     private readonly rooms: RoomsService,
@@ -171,6 +176,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     this.scheduler.cancel(graceTimerKey(room.code, playerId));
     this.notifier.leaveRoom(playerId, room.code);
     this.rooms.removeMember(room, playerId);
+    this.lastChatAt.delete(playerId);
 
     if (room.members.length === 0) {
       this.scheduler.cancelByPrefix(`${room.code}:`);
@@ -218,12 +224,40 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     return this.applyEngine(room, applyMove(room.game, { playerId, ...payload }));
   }
 
+  // -------------------------------------------------------------------------
+  // Chat
+  // -------------------------------------------------------------------------
+
+  /** Broadcasts an already-validated chat message to the room, max 1 per second per player. */
+  sendChat(playerId: PlayerId, payload: ChatSendPayload): Ack {
+    const found = this.requireMember(playerId);
+    if (!found.ok) return found;
+    const { room } = found;
+    const now = this.now();
+    const last = this.lastChatAt.get(playerId);
+    if (last !== undefined && now - last < CHAT_MIN_INTERVAL_MS) return fail('RATE_LIMITED');
+
+    this.lastChatAt.set(playerId, now);
+    this.touch(room);
+    this.notifier.toRoom(room.code, ServerEvents.ChatMessage, {
+      id: randomUUID(),
+      playerId,
+      type: payload.type,
+      value: payload.value,
+      sentAt: now,
+    });
+    return OK;
+  }
+
   /** Removes rooms with no activity for `roomIdleMs` (SPEC section 8: 30 min). */
   cleanupIdleRooms(): number {
     const limit = this.now() - this.config.timings.roomIdleMs;
     const idle = this.rooms.all().filter((room) => room.lastActivityAt < limit);
     for (const room of idle) {
-      for (const member of room.members) this.notifier.leaveRoom(member.id, room.code);
+      for (const member of room.members) {
+        this.notifier.leaveRoom(member.id, room.code);
+        this.lastChatAt.delete(member.id);
+      }
       this.scheduler.cancelByPrefix(`${room.code}:`);
       this.rooms.delete(room);
     }
@@ -310,6 +344,8 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
           phase: 'playing',
           endsAt: room.phaseEndsAt,
         });
+        // Each player needs who moves first + the turnId: resend their own view.
+        for (const member of room.members) this.sendRoomState(room, member.id);
         return;
       case 'moveApplied': {
         if (event.nextPlayerId) this.startTurnTimer(room, event.turnId);
@@ -322,6 +358,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
           timeout: move.timeout,
           explodedMine: event.explodedMine,
           blockedColumn: event.blockedColumn,
+          blockedColumns: { ...room.game?.blockedColumns },
           nextPlayerId: event.nextPlayerId,
           turnEndsAt: event.nextPlayerId ? room.phaseEndsAt : null,
           turnId: event.turnId,
@@ -375,6 +412,7 @@ export class GameService implements OnModuleInit, OnModuleDestroy {
     this.notifier.toPlayer(playerId, ServerEvents.RoomState, {
       room: toRoomSnapshot(room),
       game: room.game ? toPlayerView(room.game, playerId) : null,
+      serverTime: this.now(),
     });
   }
 
